@@ -111,21 +111,6 @@ public class MaterialService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    public MaterialDto update(Long materialId, UpdateMaterialCommand command) {
-        validateMaterialInput(command.name(), command.code());
-        Material material = getMaterialEntity(materialId);
-        if (materialRepository.existsByCodeIgnoreCaseAndIdNot(command.code(), materialId)) {
-            throw new BadRequestException("Material drawing number already exists");
-        }
-        material.setCode(command.code().trim());
-        material.setName(command.name().trim());
-        material.setUnit(normalizeOptional(command.unit()));
-        material.setCategory(normalizeOptional(command.category()));
-        material.setUpdatedAt(mapper.now());
-        material = materialRepository.save(material);
-        return mapper.toMaterialDto(material);
-    }
-
     public void delete(Long materialId) {
         Material material = getMaterialEntity(materialId);
         if (projectMaterialRepository.existsByMaterial(material)) {
