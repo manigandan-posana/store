@@ -23,8 +23,6 @@ import { MaterialQuickCreateDialog } from "../../components/MaterialQuickCreateD
 const EMPTY_ITEM = {
   material: null,
   quantity: "",
-  weightTons: "",
-  unitsCount: "",
   remarks: "",
 };
 
@@ -48,8 +46,7 @@ export function BackofficeOutwardCreatePage() {
     dcNo: "",
     issueType: "",
     issuedTo: "",
-    store: "",
-    vehicleType: "",
+    storeInchargeName: "",
     vehicleNumber: "",
     remarks: "",
   });
@@ -135,7 +132,7 @@ export function BackofficeOutwardCreatePage() {
   const handleMaterialCreated = async (material) => {
     if (!selectedProject) return;
     try {
-      await linkMaterial(selectedProject.id, { materialId: material.id, defaultLocationOverride: null });
+      await linkMaterial(selectedProject.id, { materialId: material.id });
       const materials = await loadProjectMaterials(selectedProject.id);
       if (!materials) return;
       const option = materials.find((item) => item.id === material.id);
@@ -181,11 +178,10 @@ export function BackofficeOutwardCreatePage() {
     }
     setSaving(true);
     try {
-      const movementTime = form.documentDate ? new Date(form.documentDate).toISOString() : null;
+      const movementDate = form.documentDate ? new Date(form.documentDate) : null;
+      const handoverDate = movementDate ? movementDate.toISOString().slice(0, 10) : null;
       const baseRemarks = [
-        form.issueType ? `Issue Type: ${form.issueType}` : null,
-        form.store ? `Store: ${form.store}` : null,
-        form.vehicleType ? `Vehicle Type: ${form.vehicleType}` : null,
+        form.issueType ? `Designation: ${form.issueType}` : null,
         form.vehicleNumber ? `Vehicle No: ${form.vehicleNumber}` : null,
         form.remarks ? form.remarks.trim() : null,
       ].filter(Boolean);
@@ -196,12 +192,13 @@ export function BackofficeOutwardCreatePage() {
         }
         await recordOutward(selectedProject.id, item.material.id, {
           quantity: parseNumber(item.quantity),
-          weightTons: parseNumber(item.weightTons),
-          unitsCount: parseNumber(item.unitsCount),
-          movementTime,
-          issuedTo: form.issuedTo.trim(),
-          reference: form.dcNo ? form.dcNo.trim() : null,
-          remarks: itemRemarks.length > 0 ? itemRemarks.join(" | ") : null,
+          handoverDate,
+          handoverName: form.issuedTo.trim(),
+          handoverDesignation: form.issueType ? form.issueType.trim() : null,
+          storeInchargeName: form.storeInchargeName ? form.storeInchargeName.trim() : null,
+          remarks: [form.dcNo ? `DC: ${form.dcNo.trim()}` : null, itemRemarks.length > 0 ? itemRemarks.join(" | ") : null]
+            .filter(Boolean)
+            .join(" | ") || null,
         });
       }
       notify("Outward recorded successfully", "success");
@@ -255,7 +252,7 @@ export function BackofficeOutwardCreatePage() {
                 />
               </Stack>
               <TextField
-                label="Issued To"
+                label="Handover Name"
                 name="issuedTo"
                 value={form.issuedTo}
                 onChange={handleFormChange}
@@ -263,28 +260,27 @@ export function BackofficeOutwardCreatePage() {
                 required
               />
               <TextField
-                label="Store"
-                name="store"
-                value={form.store}
+                label="Handover Designation"
+                name="issueType"
+                value={form.issueType}
                 onChange={handleFormChange}
                 fullWidth
               />
-              <Stack direction="row" spacing={2}>
-                <TextField
-                  label="Vehicle Type"
-                  name="vehicleType"
-                  value={form.vehicleType}
-                  onChange={handleFormChange}
-                  fullWidth
-                />
-                <TextField
-                  label="Vehicle Number"
-                  name="vehicleNumber"
-                  value={form.vehicleNumber}
-                  onChange={handleFormChange}
-                  fullWidth
-                />
-              </Stack>
+              <TextField
+                label="Store Incharge Name"
+                name="storeInchargeName"
+                value={form.storeInchargeName}
+                onChange={handleFormChange}
+                fullWidth
+                required
+              />
+              <TextField
+                label="Vehicle Number"
+                name="vehicleNumber"
+                value={form.vehicleNumber}
+                onChange={handleFormChange}
+                fullWidth
+              />
               <TextField
                 label="Remarks"
                 name="remarks"
@@ -357,24 +353,6 @@ export function BackofficeOutwardCreatePage() {
                       onChange={(event) => handleItemChange(index, "quantity", event.target.value)}
                       fullWidth
                       required
-                    />
-                    <TextField
-                      label="Weight (tons)"
-                      type="number"
-                      inputProps={{ min: 0, step: "any" }}
-                      value={item.weightTons}
-                      onChange={(event) => handleItemChange(index, "weightTons", event.target.value)}
-                      fullWidth
-                    />
-                  </Stack>
-                  <Stack direction="row" spacing={2}>
-                    <TextField
-                      label="Units Count"
-                      type="number"
-                      inputProps={{ min: 0 }}
-                      value={item.unitsCount}
-                      onChange={(event) => handleItemChange(index, "unitsCount", event.target.value)}
-                      fullWidth
                     />
                     <TextField
                       label="Item Remarks"

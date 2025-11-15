@@ -36,16 +36,13 @@ public class InventoryController {
         return inventoryService.recordInward(new RecordInwardCommand(
                 projectId,
                 materialId,
-                request.quantity(),
-                request.declaredQuantity(),
-                request.batchNumber(),
-                request.weightTons(),
-                request.unitsCount(),
-                request.movementTime(),
-                request.vehicleType(),
+                request.deliveredQuantity(),
+                request.invoiceQuantity(),
+                request.invoiceNumber(),
+                request.invoiceDate(),
+                request.receiveDate(),
                 request.vehicleNumber(),
-                request.supplier(),
-                request.reference(),
+                request.supplierName(),
                 request.remarks()));
     }
 
@@ -60,11 +57,10 @@ public class InventoryController {
                 projectId,
                 materialId,
                 request.quantity(),
-                request.weightTons(),
-                request.unitsCount(),
-                request.movementTime(),
-                request.issuedTo(),
-                request.reference(),
+                request.handoverDate(),
+                request.handoverName(),
+                request.handoverDesignation(),
+                request.storeInchargeName(),
                 request.remarks()));
     }
 }

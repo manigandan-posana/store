@@ -18,6 +18,9 @@ public interface OutwardEntryRepository extends JpaRepository<OutwardEntry, Long
     @Query("SELECT COALESCE(SUM(o.quantity), 0) FROM OutwardEntry o WHERE o.project = :project AND o.material = :material")
     BigDecimal sumQuantityByProjectAndMaterial(@Param("project") Project project, @Param("material") Material material);
 
+    @Query("SELECT COALESCE(SUM(o.quantity), 0) FROM OutwardEntry o WHERE o.material = :material")
+    BigDecimal sumQuantityByMaterial(@Param("material") Material material);
+
     @Query("SELECT COALESCE(SUM(o.weightTons), 0) FROM OutwardEntry o WHERE o.project = :project AND o.material = :material")
     BigDecimal sumWeightByProjectAndMaterial(@Param("project") Project project, @Param("material") Material material);
 
