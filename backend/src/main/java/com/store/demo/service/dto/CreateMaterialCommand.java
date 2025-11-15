@@ -1,9 +1,3 @@
 package com.store.demo.service.dto;
 
-public record CreateMaterialCommand(
-        String name,
-        String code,
-        String unit,
-        String category,
-        Integer minimumStock,
-        String defaultLocation) {}
+public record CreateMaterialCommand(String name, String code, String unit, String category) {}

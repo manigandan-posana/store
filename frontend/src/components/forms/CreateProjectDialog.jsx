@@ -6,19 +6,13 @@ import {
   DialogContent,
   DialogTitle,
   Grid,
-  MenuItem,
   TextField,
 } from "@mui/material";
 import { useEffect, useState } from "react";
 
-const statusOptions = ["Planning", "In Progress", "Completed", "On Hold"];
-
 const initialForm = {
   name: "",
-  code: "",
   clientLocation: "",
-  status: "In Progress",
-  description: "",
 };
 
 export function CreateProjectDialog({ open, onClose, onSubmit }) {
@@ -56,32 +50,6 @@ export function CreateProjectDialog({ open, onClose, onSubmit }) {
                 fullWidth
               />
             </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                name="code"
-                label="Project Code"
-                value={form.code}
-                onChange={handleChange}
-                required
-                fullWidth
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                name="status"
-                label="Status"
-                value={form.status}
-                onChange={handleChange}
-                fullWidth
-              >
-                {statusOptions.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
             <Grid item xs={12}>
               <TextField
                 name="clientLocation"
@@ -89,17 +57,7 @@ export function CreateProjectDialog({ open, onClose, onSubmit }) {
                 value={form.clientLocation}
                 onChange={handleChange}
                 fullWidth
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                name="description"
-                label="Description"
-                value={form.description}
-                onChange={handleChange}
-                fullWidth
-                multiline
-                minRows={3}
+                required
               />
             </Grid>
           </Grid>

@@ -24,8 +24,6 @@ const EMPTY_ITEM = {
   quantity: "",
   declaredQuantity: "",
   batchNumber: "",
-  weightTons: "",
-  unitsCount: "",
   remarks: "",
 };
 
@@ -50,7 +48,6 @@ export function BackofficeInwardCreatePage() {
     documentDate: dateNowLocal(),
     supplier: "",
     store: "",
-    vehicleType: "",
     vehicleNumber: "",
     remarks: "",
   });
@@ -138,7 +135,7 @@ export function BackofficeInwardCreatePage() {
   const handleMaterialCreated = async (material) => {
     if (!selectedProject) return;
     try {
-      await linkMaterial(selectedProject.id, { materialId: material.id, defaultLocationOverride: null });
+      await linkMaterial(selectedProject.id, { materialId: material.id });
       const materials = await loadProjectMaterials(selectedProject.id);
       if (!materials) return;
       const option = materials.find((item) => item.id === material.id);
@@ -172,7 +169,8 @@ export function BackofficeInwardCreatePage() {
     }
     setSaving(true);
     try {
-      const movementTime = form.documentDate ? new Date(form.documentDate).toISOString() : null;
+      const movementDate = form.documentDate ? new Date(form.documentDate) : null;
+      const invoiceDate = movementDate ? movementDate.toISOString().slice(0, 10) : null;
       const baseRemarks = [
         form.documentType ? `Doc Type: ${form.documentType}` : null,
         form.store ? `Store: ${form.store}` : null,
@@ -184,17 +182,16 @@ export function BackofficeInwardCreatePage() {
         if (item.remarks) {
           itemRemarks.push(item.remarks.trim());
         }
+        const deliveredQuantity = parseNumber(item.quantity);
+        const invoiceQuantity = parseNumber(item.declaredQuantity) ?? deliveredQuantity;
         await recordInward(selectedProject.id, item.material.id, {
-          quantity: parseNumber(item.quantity),
-          declaredQuantity: parseNumber(item.declaredQuantity),
-          batchNumber: item.batchNumber ? item.batchNumber.trim() : null,
-          weightTons: parseNumber(item.weightTons),
-          unitsCount: parseNumber(item.unitsCount),
-          movementTime,
-          vehicleType: form.vehicleType ? form.vehicleType.trim() : null,
+          invoiceNumber: form.documentNo ? form.documentNo.trim() : item.batchNumber?.trim() || null,
+          invoiceDate,
+          receiveDate: invoiceDate,
           vehicleNumber: form.vehicleNumber ? form.vehicleNumber.trim() : null,
-          supplier: form.supplier ? form.supplier.trim() : null,
-          reference: form.documentNo ? form.documentNo.trim() : null,
+          invoiceQuantity,
+          deliveredQuantity,
+          supplierName: form.supplier ? form.supplier.trim() : null,
           remarks: itemRemarks.length > 0 ? itemRemarks.join(" | ") : null,
         });
       }
@@ -263,22 +260,13 @@ export function BackofficeInwardCreatePage() {
                 onChange={handleFormChange}
                 fullWidth
               />
-              <Stack direction="row" spacing={2}>
-                <TextField
-                  label="Vehicle Type"
-                  name="vehicleType"
-                  value={form.vehicleType}
-                  onChange={handleFormChange}
-                  fullWidth
-                />
-                <TextField
-                  label="Vehicle Number"
-                  name="vehicleNumber"
-                  value={form.vehicleNumber}
-                  onChange={handleFormChange}
-                  fullWidth
-                />
-              </Stack>
+              <TextField
+                label="Vehicle Number"
+                name="vehicleNumber"
+                value={form.vehicleNumber}
+                onChange={handleFormChange}
+                fullWidth
+              />
               <TextField
                 label="Remarks"
                 name="remarks"
@@ -334,7 +322,7 @@ export function BackofficeInwardCreatePage() {
                   />
                   <Stack direction="row" spacing={2}>
                     <TextField
-                      label="Quantity"
+                      label="Delivered Quantity"
                       type="number"
                       inputProps={{ min: 0, step: "any" }}
                       value={item.quantity}
@@ -343,7 +331,7 @@ export function BackofficeInwardCreatePage() {
                       required
                     />
                     <TextField
-                      label="Declared Qty"
+                      label="Invoice Quantity"
                       type="number"
                       inputProps={{ min: 0, step: "any" }}
                       value={item.declaredQuantity}
@@ -353,27 +341,9 @@ export function BackofficeInwardCreatePage() {
                   </Stack>
                   <Stack direction="row" spacing={2}>
                     <TextField
-                      label="Batch No"
+                      label="Invoice / Reference"
                       value={item.batchNumber}
                       onChange={(event) => handleItemChange(index, "batchNumber", event.target.value)}
-                      fullWidth
-                    />
-                    <TextField
-                      label="Weight (tons)"
-                      type="number"
-                      inputProps={{ min: 0, step: "any" }}
-                      value={item.weightTons}
-                      onChange={(event) => handleItemChange(index, "weightTons", event.target.value)}
-                      fullWidth
-                    />
-                  </Stack>
-                  <Stack direction="row" spacing={2}>
-                    <TextField
-                      label="Units Count"
-                      type="number"
-                      inputProps={{ min: 0 }}
-                      value={item.unitsCount}
-                      onChange={(event) => handleItemChange(index, "unitsCount", event.target.value)}
                       fullWidth
                     />
                     <TextField
