@@ -272,12 +272,12 @@ public class InventoryService {
     public InventoryMovementReportDto getInventoryMovementReport(Long projectId) {
         List<ProjectDto> projects = projectService.findAll();
 
-        Project selectedProjectEntity = null;
-        ProjectDto selectedProject = null;
-        if (projectId != null) {
-            selectedProjectEntity = projectService.getProjectEntity(projectId);
-            selectedProject = mapper.toProjectDto(selectedProjectEntity);
-        }
+        final Project selectedProjectEntity = projectId != null
+                ? projectService.getProjectEntity(projectId)
+                : null;
+        final ProjectDto selectedProject = selectedProjectEntity != null
+                ? mapper.toProjectDto(selectedProjectEntity)
+                : null;
 
         List<MovementDto> movements = new ArrayList<>();
         if (selectedProjectEntity != null) {
