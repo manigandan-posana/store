@@ -17,8 +17,6 @@ const newMaterialInitial = {
   code: "",
   unit: "",
   category: "",
-  minimumStock: "",
-  defaultLocation: "",
 };
 
 export function LinkMaterialDialog({
@@ -31,14 +29,12 @@ export function LinkMaterialDialog({
   const [mode, setMode] = useState("existing");
   const [selectedMaterial, setSelectedMaterial] = useState("");
   const [newMaterial, setNewMaterial] = useState(newMaterialInitial);
-  const [defaultLocationOverride, setDefaultLocationOverride] = useState("");
 
   useEffect(() => {
     if (!open) {
       setMode("existing");
       setSelectedMaterial("");
       setNewMaterial(newMaterialInitial);
-      setDefaultLocationOverride("");
     }
   }, [open]);
 
@@ -47,15 +43,10 @@ export function LinkMaterialDialog({
     if (mode === "existing") {
       await onLinkExisting({
         materialId: Number(selectedMaterial),
-        defaultLocationOverride: defaultLocationOverride || undefined,
       });
     } else {
-      const payload = {
-        ...newMaterial,
-        minimumStock: newMaterial.minimumStock ? Number(newMaterial.minimumStock) : null,
-      };
-      const created = await onCreateMaterial(payload);
-      await onLinkExisting({ materialId: created.id, defaultLocationOverride: defaultLocationOverride || undefined });
+      const created = await onCreateMaterial(newMaterial);
+      await onLinkExisting({ materialId: created.id });
     }
   };
 
@@ -90,12 +81,6 @@ export function LinkMaterialDialog({
                   </MenuItem>
                 ))}
               </TextField>
-              <TextField
-                label="Override Default Location (optional)"
-                value={defaultLocationOverride}
-                onChange={(e) => setDefaultLocationOverride(e.target.value)}
-                fullWidth
-              />
             </Box>
           ) : (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -107,41 +92,22 @@ export function LinkMaterialDialog({
                 fullWidth
               />
               <TextField
-                label="Material Code"
+                label="Drawing Part No."
                 value={newMaterial.code}
                 onChange={(e) => setNewMaterial((prev) => ({ ...prev, code: e.target.value }))}
                 required
                 fullWidth
               />
               <TextField
-                label="Unit"
+                label="UOM (Unit of Measure)"
                 value={newMaterial.unit}
                 onChange={(e) => setNewMaterial((prev) => ({ ...prev, unit: e.target.value }))}
                 fullWidth
               />
               <TextField
-                label="Category"
+                label="Line Type"
                 value={newMaterial.category}
                 onChange={(e) => setNewMaterial((prev) => ({ ...prev, category: e.target.value }))}
-                fullWidth
-              />
-              <TextField
-                type="number"
-                label="Minimum Stock"
-                value={newMaterial.minimumStock}
-                onChange={(e) => setNewMaterial((prev) => ({ ...prev, minimumStock: e.target.value }))}
-                fullWidth
-              />
-              <TextField
-                label="Default Store / Location"
-                value={newMaterial.defaultLocation}
-                onChange={(e) => setNewMaterial((prev) => ({ ...prev, defaultLocation: e.target.value }))}
-                fullWidth
-              />
-              <TextField
-                label="Override Default Location (optional)"
-                value={defaultLocationOverride}
-                onChange={(e) => setDefaultLocationOverride(e.target.value)}
                 fullWidth
               />
             </Box>

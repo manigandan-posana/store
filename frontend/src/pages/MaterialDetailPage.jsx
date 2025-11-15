@@ -147,10 +147,16 @@ export function MaterialDetailPage() {
           </Grid>
           <Grid item xs={12} md={3}>
             <Typography variant="caption" color="text.secondary">
-              Minimum Stock Threshold
+              Line Type
             </Typography>
             <Typography variant="h6" fontWeight={600}>
-              {material.minimumStock ?? 0}
+              {material.category || "–"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block">
+              Drawing No.: {material.code || "–"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block">
+              UOM: {material.unit || "–"}
             </Typography>
           </Grid>
         </Grid>

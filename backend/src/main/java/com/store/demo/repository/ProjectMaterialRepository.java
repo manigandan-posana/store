@@ -13,4 +13,6 @@ public interface ProjectMaterialRepository extends JpaRepository<ProjectMaterial
     List<ProjectMaterial> findByProject(Project project);
 
     Optional<ProjectMaterial> findByProjectAndMaterial(Project project, Material material);
+
+    boolean existsByMaterial(Material material);
 }
