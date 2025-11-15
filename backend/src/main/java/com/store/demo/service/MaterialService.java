@@ -29,6 +29,7 @@ public class MaterialService {
     private final InwardEntryRepository inwardEntryRepository;
     private final OutwardEntryRepository outwardEntryRepository;
     private final DtoMapper mapper;
+    private final ProjectMaterialRepository projectMaterialRepository;
 
     public MaterialService(
             MaterialRepository materialRepository,
@@ -83,6 +84,46 @@ public class MaterialService {
         material.setUpdatedAt(mapper.now());
         material = materialRepository.save(material);
         return toSummary(material);
+    }
+
+    public void delete(Long materialId) {
+        Material material = getMaterialEntity(materialId);
+        if (projectMaterialRepository.existsByMaterial(material)) {
+            throw new BadRequestException("Material is linked to one or more projects");
+        }
+        materialRepository.delete(material);
+    }
+
+    private void validateMaterialInput(String name, String code) {
+        if (code == null || code.trim().isEmpty()) {
+            throw new BadRequestException("Drawing part number is required");
+        }
+        if (name == null || name.trim().isEmpty()) {
+            throw new BadRequestException("Material name is required");
+        }
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public MaterialDto update(Long materialId, UpdateMaterialCommand command) {
+        validateMaterialInput(command.name(), command.code());
+        Material material = getMaterialEntity(materialId);
+        if (materialRepository.existsByCodeIgnoreCaseAndIdNot(command.code(), materialId)) {
+            throw new BadRequestException("Material drawing number already exists");
+        }
+        material.setCode(command.code().trim());
+        material.setName(command.name().trim());
+        material.setUnit(normalizeOptional(command.unit()));
+        material.setCategory(normalizeOptional(command.category()));
+        material.setUpdatedAt(mapper.now());
+        material = materialRepository.save(material);
+        return mapper.toMaterialDto(material);
     }
 
     public void delete(Long materialId) {
