@@ -25,6 +25,7 @@ import { InwardForm } from "../components/forms/InwardForm";
 import { OutwardForm } from "../components/forms/OutwardForm";
 import { LinkMaterialDialog } from "../components/forms/LinkMaterialDialog";
 import { useNotification } from "../providers/NotificationProvider";
+import { sanitizeMaterialPayload } from "../utils/materials";
 
 export function DashboardPage() {
   const { notify } = useNotification();
@@ -141,13 +142,13 @@ export function DashboardPage() {
     }
   };
 
-  const handleLinkMaterial = async ({ materialId, defaultLocationOverride }) => {
+  const handleLinkMaterial = async ({ materialId }) => {
     if (!selectedProjectId) {
       notify("Select a project first", "warning");
       return;
     }
     try {
-      await linkMaterial(selectedProjectId, { materialId, defaultLocationOverride });
+      await linkMaterial(selectedProjectId, { materialId });
       notify("Material linked to project", "success");
       setMaterialDialogOpen(false);
       await loadDashboard(selectedProjectId);
@@ -158,8 +159,14 @@ export function DashboardPage() {
   };
 
   const handleCreateMaterial = async (payload) => {
+    const sanitized = sanitizeMaterialPayload(payload);
+    if (!sanitized.name || !sanitized.code) {
+      const validationError = new Error("Material name and drawing number are required");
+      notify(validationError.message, "warning");
+      throw validationError;
+    }
     try {
-      const material = await createMaterial(payload);
+      const material = await createMaterial(sanitized);
       setAllMaterials((prev) => [...prev, material]);
       notify("Material created", "success");
       return material;
@@ -492,40 +499,68 @@ export function DashboardPage() {
                           <Grid item xs={12} sm={4}>
                             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                               <Typography variant="caption" color="text.secondary">
-                                Default Location
+                                Drawing Part No.
                               </Typography>
                               <Typography variant="subtitle1" fontWeight={600}>
-                                {materialDetail.material.defaultLocation || "–"}
+                                {materialDetail.material.code || "–"}
                               </Typography>
                             </Paper>
                           </Grid>
                           <Grid item xs={12} sm={4}>
                             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                               <Typography variant="caption" color="text.secondary">
-                                Minimum Stock
+                                Unit of Measure
                               </Typography>
                               <Typography variant="subtitle1" fontWeight={600}>
-                                {(materialDetail.material.minimumStock ?? 0).toLocaleString()} {materialDetail.material.unit || ""}
+                                {materialDetail.material.unit || "–"}
                               </Typography>
                             </Paper>
                           </Grid>
                           <Grid item xs={12} sm={4}>
                             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                               <Typography variant="caption" color="text.secondary">
-                                Status
+                                Line Type
                               </Typography>
-                              <Typography
-                                variant="subtitle1"
-                                fontWeight={600}
-                                color={
-                                  materialDetail.stats.currentStock < (materialDetail.material.minimumStock ?? 0)
-                                    ? "error.main"
-                                    : "success.main"
-                                }
-                              >
-                                {materialDetail.stats.currentStock < (materialDetail.material.minimumStock ?? 0)
-                                  ? "Below minimum"
-                                  : "Healthy"}
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {materialDetail.material.category || "–"}
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                        </Grid>
+
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={4}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Last Inward
+                              </Typography>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {materialDetail.stats.lastInTime
+                                  ? new Date(materialDetail.stats.lastInTime).toLocaleDateString()
+                                  : "–"}
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Last Outward
+                              </Typography>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {materialDetail.stats.lastOutTime
+                                  ? new Date(materialDetail.stats.lastOutTime).toLocaleDateString()
+                                  : "–"}
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Current Stock Snapshot
+                              </Typography>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {materialDetail.stats.currentStock.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                                {materialDetail.material.unit ? ` ${materialDetail.material.unit}` : ""}
                               </Typography>
                             </Paper>
                           </Grid>

@@ -248,54 +248,58 @@ export function AdminDashboardPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>Type</TableCell>
-                  <TableCell>Date &amp; Time</TableCell>
                   <TableCell>Project</TableCell>
                   <TableCell>Material</TableCell>
                   <TableCell align="right">Quantity</TableCell>
-                  <TableCell align="right">Weight (T)</TableCell>
-                  <TableCell align="right">Units</TableCell>
-                  <TableCell align="right">Balance</TableCell>
-                  <TableCell>Batch / Allocation</TableCell>
-                  <TableCell>Source / Issued To</TableCell>
-                  <TableCell>Reference</TableCell>
+                  <TableCell>Invoice / Handover</TableCell>
+                  <TableCell>Dates</TableCell>
+                  <TableCell>Supplier / Recipient</TableCell>
+                  <TableCell>Vehicle / Store</TableCell>
+                  <TableCell>Batch / Notes</TableCell>
                   <TableCell>Remarks</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {report?.movements?.length ? (
                   report.movements.map((movement) => {
-                    const vehicleInfo = [movement.vehicleType, movement.vehicleNumber]
-                      .filter(Boolean)
-                      .join(" / ");
-                    const source = movement.issuedToOrSupplier || vehicleInfo || "-";
-                    const remaining =
-                      movement.remainingQuantity !== null && movement.remainingQuantity !== undefined
-                        ? formatNumber(movement.remainingQuantity)
-                        : "-";
+                    const invoiceInfo =
+                      movement.type === "IN"
+                        ? movement.invoiceNumber || "-"
+                        : movement.handoverName || "-";
+                    const dateInfo =
+                      movement.type === "IN"
+                        ? `${movement.invoiceDate || "-"} → ${movement.receiveDate || "-"}`
+                        : movement.handoverDate || "-";
+                    const personInfo =
+                      movement.type === "IN"
+                        ? movement.supplierName || "-"
+                        : `${movement.handoverName || "-"}${movement.handoverDesignation ? ` (${movement.handoverDesignation})` : ""}`;
+                    const vehicleInfo =
+                      movement.type === "IN" ? movement.vehicleNumber || "-" : movement.storeInchargeName || "-";
+                    const batchInfo = movement.batchSummary || "-";
                     return (
-                      <TableRow key={`${movement.type}-${movement.id}`}> 
+                      <TableRow key={`${movement.type}-${movement.id}`}>
                         <TableCell>{renderTypeChip(movement.type)}</TableCell>
-                        <TableCell>{new Date(movement.movementTime).toLocaleString()}</TableCell>
                         <TableCell>{movement.projectName}</TableCell>
                         <TableCell>{movement.materialName}</TableCell>
                         <TableCell align="right">{formatNumber(movement.quantity)}</TableCell>
-                        <TableCell align="right">{formatNumber(movement.weightTons)}</TableCell>
-                        <TableCell align="right">
-                          {movement.unitsCount !== null && movement.unitsCount !== undefined
-                            ? movement.unitsCount.toLocaleString()
-                            : "-"}
+                        <TableCell>{invoiceInfo}</TableCell>
+                        <TableCell>
+                          {dateInfo}
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {new Date(movement.movementTime).toLocaleString()}
+                          </Typography>
                         </TableCell>
-                        <TableCell align="right">{remaining}</TableCell>
-                        <TableCell>{movement.batchNumber || "-"}</TableCell>
-                        <TableCell>{source}</TableCell>
-                        <TableCell>{movement.reference || "-"}</TableCell>
+                        <TableCell>{personInfo}</TableCell>
+                        <TableCell>{vehicleInfo}</TableCell>
+                        <TableCell>{batchInfo}</TableCell>
                         <TableCell>{movement.remarks || "-"}</TableCell>
                       </TableRow>
                     );
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={12} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 4, color: "text.secondary" }}>
                       {projectFilter ? "No movements recorded for this project yet." : "No movements recorded yet."}
                     </TableCell>
                   </TableRow>

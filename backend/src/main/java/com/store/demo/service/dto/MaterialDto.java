@@ -8,7 +8,5 @@ public record MaterialDto(
         String name,
         String unit,
         String category,
-        Integer minimumStock,
-        String defaultLocation,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {}

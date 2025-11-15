@@ -62,17 +62,15 @@ public class InventoryService {
     }
 
     public MovementDto recordInward(RecordInwardCommand command) {
-        validateQuantity(command.quantity());
+        validateQuantity(command.deliveredQuantity());
+        validateQuantity(command.invoiceQuantity());
         Project project = projectService.getProjectEntity(command.projectId());
         Material material = materialService.getMaterialEntity(command.materialId());
         ensureMaterialLinked(project, material);
 
-        OffsetDateTime movementTime =
-                command.movementTime() != null ? command.movementTime() : mapper.now();
-        BigDecimal quantity = BigDecimal.valueOf(command.quantity()).setScale(3, RoundingMode.HALF_UP);
-        BigDecimal declaredQuantity = toBigDecimal(command.declaredQuantity());
-        BigDecimal weight = toBigDecimal(command.weightTons());
-        Integer units = command.unitsCount();
+        OffsetDateTime movementTime = toMovementTime(command.receiveDate());
+        BigDecimal quantity = BigDecimal.valueOf(command.deliveredQuantity()).setScale(3, RoundingMode.HALF_UP);
+        BigDecimal invoiceQuantity = BigDecimal.valueOf(command.invoiceQuantity()).setScale(3, RoundingMode.HALF_UP);
 
         InwardEntry entry = new InwardEntry();
         entry.setProject(project);
@@ -80,14 +78,13 @@ public class InventoryService {
         entry.setQuantity(quantity);
         entry.setRemainingQuantity(quantity);
         entry.setMovementTime(movementTime);
-        entry.setBatchNumber(command.batchNumber());
-        entry.setDeclaredQuantity(declaredQuantity);
-        entry.setWeightTons(weight);
-        entry.setUnitsCount(units);
-        entry.setVehicleType(command.vehicleType());
+        entry.setInvoiceNumber(command.invoiceNumber());
+        entry.setInvoiceDate(command.invoiceDate());
+        entry.setReceiveDate(command.receiveDate());
+        entry.setInvoiceQuantity(invoiceQuantity);
         entry.setVehicleNumber(command.vehicleNumber());
-        entry.setSupplier(command.supplier());
-        entry.setReference(command.reference());
+        entry.setSupplier(command.supplierName());
+        entry.setReference(command.invoiceNumber());
         entry.setRemarks(command.remarks());
         entry.setCreatedAt(mapper.now());
         entry = inwardEntryRepository.save(entry);
@@ -119,17 +116,18 @@ public class InventoryService {
                     String.format(Locale.ENGLISH, "Insufficient stock. Available %.3f", available.doubleValue()));
         }
 
-        OffsetDateTime movementTime =
-                command.movementTime() != null ? command.movementTime() : mapper.now();
+        OffsetDateTime movementTime = toMovementTime(command.handoverDate());
         OutwardEntry outwardEntry = new OutwardEntry();
         outwardEntry.setProject(project);
         outwardEntry.setMaterial(material);
         outwardEntry.setQuantity(requested);
-        outwardEntry.setWeightTons(toBigDecimal(command.weightTons()));
-        outwardEntry.setUnitsCount(command.unitsCount());
         outwardEntry.setMovementTime(movementTime);
-        outwardEntry.setIssuedTo(command.issuedTo());
-        outwardEntry.setReference(command.reference());
+        outwardEntry.setHandoverDate(command.handoverDate());
+        outwardEntry.setHandoverName(command.handoverName());
+        outwardEntry.setHandoverDesignation(command.handoverDesignation());
+        outwardEntry.setStoreInchargeName(command.storeInchargeName());
+        outwardEntry.setIssuedTo(command.handoverName());
+        outwardEntry.setReference(command.handoverName());
         outwardEntry.setRemarks(command.remarks());
         outwardEntry.setCreatedAt(mapper.now());
 
@@ -411,13 +409,18 @@ public class InventoryService {
         }
     }
 
+    private OffsetDateTime toMovementTime(java.time.LocalDate date) {
+        if (date == null) {
+            return mapper.now();
+        }
+        return date.atStartOfDay(java.time.ZoneId.systemDefault()).toOffsetDateTime();
+    }
+
     private MovementDto toInwardMovement(Project project, Material material, InwardEntry entry) {
-        BigDecimal declared = entry.getDeclaredQuantity();
         BigDecimal remaining = entry.getRemainingQuantity();
-        BigDecimal weight = entry.getWeightTons();
-        Double variance = declared != null
-                ? declared.subtract(entry.getQuantity()).setScale(3, RoundingMode.HALF_UP).doubleValue()
-                : null;
+        BigDecimal invoiceQuantity = entry.getInvoiceQuantity() != null
+                ? entry.getInvoiceQuantity()
+                : entry.getQuantity();
         return new MovementDto(
                 entry.getId(),
                 "IN",
@@ -427,16 +430,18 @@ public class InventoryService {
                 material.getName(),
                 entry.getQuantity().doubleValue(),
                 entry.getMovementTime(),
-                entry.getVehicleType(),
+                entry.getInvoiceNumber(),
+                entry.getInvoiceDate(),
+                entry.getReceiveDate(),
+                toDouble(invoiceQuantity),
                 entry.getVehicleNumber(),
                 entry.getSupplier(),
-                entry.getBatchNumber(),
-                toDouble(declared),
-                variance,
-                toDouble(weight),
-                entry.getUnitsCount(),
+                null,
+                null,
+                null,
+                null,
                 toDouble(remaining),
-                entry.getReference(),
+                null,
                 entry.getRemarks());
     }
 
@@ -469,22 +474,17 @@ public class InventoryService {
                 entry.getMovementTime(),
                 null,
                 null,
-                entry.getIssuedTo(),
+                null,
+                null,
+                null,
+                null,
+                entry.getHandoverDate(),
+                entry.getHandoverName(),
+                entry.getHandoverDesignation(),
+                entry.getStoreInchargeName(),
+                null,
                 batchInfo,
-                null,
-                null,
-                toDouble(entry.getWeightTons()),
-                entry.getUnitsCount(),
-                null,
-                entry.getReference(),
                 entry.getRemarks());
-    }
-
-    private BigDecimal toBigDecimal(Double value) {
-        if (value == null) {
-            return null;
-        }
-        return BigDecimal.valueOf(value).setScale(3, RoundingMode.HALF_UP);
     }
 
     private Double toDouble(BigDecimal value) {

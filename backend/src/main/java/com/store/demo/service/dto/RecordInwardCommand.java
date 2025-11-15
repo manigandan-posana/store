@@ -1,18 +1,15 @@
 package com.store.demo.service.dto;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDate;
 
 public record RecordInwardCommand(
         Long projectId,
         Long materialId,
-        double quantity,
-        Double declaredQuantity,
-        String batchNumber,
-        Double weightTons,
-        Integer unitsCount,
-        OffsetDateTime movementTime,
-        String vehicleType,
+        double deliveredQuantity,
+        double invoiceQuantity,
+        String invoiceNumber,
+        LocalDate invoiceDate,
+        LocalDate receiveDate,
         String vehicleNumber,
-        String supplier,
-        String reference,
+        String supplierName,
         String remarks) {}

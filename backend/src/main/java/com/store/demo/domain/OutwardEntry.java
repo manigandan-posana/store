@@ -12,6 +12,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +53,18 @@ public class OutwardEntry {
 
     @Column(length = 512)
     private String remarks;
+
+    @Column(name = "handover_date")
+    private LocalDate handoverDate;
+
+    @Column(name = "handover_name", length = 128)
+    private String handoverName;
+
+    @Column(name = "handover_designation", length = 128)
+    private String handoverDesignation;
+
+    @Column(name = "store_incharge_name", length = 128)
+    private String storeInchargeName;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -137,6 +150,38 @@ public class OutwardEntry {
 
     public void setRemarks(String remarks) {
         this.remarks = remarks;
+    }
+
+    public LocalDate getHandoverDate() {
+        return handoverDate;
+    }
+
+    public void setHandoverDate(LocalDate handoverDate) {
+        this.handoverDate = handoverDate;
+    }
+
+    public String getHandoverName() {
+        return handoverName;
+    }
+
+    public void setHandoverName(String handoverName) {
+        this.handoverName = handoverName;
+    }
+
+    public String getHandoverDesignation() {
+        return handoverDesignation;
+    }
+
+    public void setHandoverDesignation(String handoverDesignation) {
+        this.handoverDesignation = handoverDesignation;
+    }
+
+    public String getStoreInchargeName() {
+        return storeInchargeName;
+    }
+
+    public void setStoreInchargeName(String storeInchargeName) {
+        this.storeInchargeName = storeInchargeName;
     }
 
     public OffsetDateTime getCreatedAt() {
