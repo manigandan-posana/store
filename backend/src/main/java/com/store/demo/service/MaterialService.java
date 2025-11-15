@@ -31,6 +31,7 @@ public class MaterialService {
     private final InwardEntryRepository inwardEntryRepository;
     private final OutwardEntryRepository outwardEntryRepository;
     private final DtoMapper mapper;
+    private final ProjectMaterialRepository projectMaterialRepository;
 
     public MaterialService(
             MaterialRepository materialRepository,
