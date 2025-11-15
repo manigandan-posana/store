@@ -16,8 +16,7 @@ const INITIAL_FORM = {
   code: "",
   unit: "",
   category: "",
-  minimumStock: "",
-  defaultLocation: "",
+  initialQuantity: "",
 };
 
 export function MaterialQuickCreateDialog({ open, onClose, onCreated }) {
@@ -39,7 +38,7 @@ export function MaterialQuickCreateDialog({ open, onClose, onCreated }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!form.name.trim() || !form.code.trim()) {
-      notify("Material name and code are required", "warning");
+      notify("Material name and drawing number are required", "warning");
       return;
     }
     setSaving(true);
@@ -49,8 +48,8 @@ export function MaterialQuickCreateDialog({ open, onClose, onCreated }) {
         code: form.code.trim(),
         unit: form.unit.trim() || null,
         category: form.category.trim() || null,
-        minimumStock: form.minimumStock ? Number(form.minimumStock) : null,
-        defaultLocation: form.defaultLocation.trim() || null,
+        initialQuantity:
+          form.initialQuantity !== "" ? Number.parseFloat(form.initialQuantity) || 0 : 0,
       };
       const material = await createMaterial(payload);
       notify(`Material ${material.name} created`, "success");
@@ -78,28 +77,21 @@ export function MaterialQuickCreateDialog({ open, onClose, onCreated }) {
             fullWidth
           />
           <TextField
-            label="Material Code"
+            label="Drawing Part No."
             name="code"
             value={form.code}
             onChange={handleChange}
             required
             fullWidth
           />
-          <TextField label="Unit" name="unit" value={form.unit} onChange={handleChange} fullWidth />
-          <TextField label="Category" name="category" value={form.category} onChange={handleChange} fullWidth />
+          <TextField label="UOM (Unit of Measure)" name="unit" value={form.unit} onChange={handleChange} fullWidth />
+          <TextField label="Line Type" name="category" value={form.category} onChange={handleChange} fullWidth />
           <TextField
-            label="Minimum Stock"
-            name="minimumStock"
+            label="In-hand Quantity"
+            name="initialQuantity"
             type="number"
-            inputProps={{ min: 0 }}
-            value={form.minimumStock}
-            onChange={handleChange}
-            fullWidth
-          />
-          <TextField
-            label="Default Location"
-            name="defaultLocation"
-            value={form.defaultLocation}
+            inputProps={{ min: 0, step: "0.01" }}
+            value={form.initialQuantity}
             onChange={handleChange}
             fullWidth
           />

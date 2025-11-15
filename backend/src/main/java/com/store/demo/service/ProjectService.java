@@ -36,26 +36,33 @@ public class ProjectService {
     }
 
     public ProjectDto create(CreateProjectCommand command) {
-        if (command.code() == null || command.code().isBlank()) {
-            throw new BadRequestException("Project code is required");
-        }
         if (command.name() == null || command.name().isBlank()) {
             throw new BadRequestException("Project name is required");
         }
-        if (projectRepository.existsByCodeIgnoreCase(command.code())) {
-            throw new BadRequestException("Project code already exists");
-        }
         OffsetDateTime now = mapper.now();
         Project project = new Project();
-        project.setCode(command.code().trim());
+        project.setCode(generateProjectCode(command.name()));
         project.setName(command.name().trim());
         project.setClientLocation(command.clientLocation());
-        project.setStatus(command.status() == null ? "In Progress" : command.status());
-        project.setDescription(command.description());
+        project.setStatus("In Progress");
         project.setCreatedAt(now);
         project.setUpdatedAt(now);
         project = projectRepository.save(project);
         return mapper.toProjectDto(project);
+    }
+
+    private String generateProjectCode(String name) {
+        String base = name == null ? "PRJ" : name.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
+        if (base.isBlank()) {
+            base = "PRJ";
+        }
+        base = base.length() > 12 ? base.substring(0, 12) : base;
+        String candidate = base;
+        int counter = 1;
+        while (projectRepository.existsByCodeIgnoreCase(candidate)) {
+            candidate = base + String.format("-%02d", counter++);
+        }
+        return candidate;
     }
 
     public Project getProjectEntity(Long id) {

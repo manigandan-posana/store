@@ -50,8 +50,7 @@ public class ProjectController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('BACKOFFICE')")
     public ProjectDto createProject(@Valid @RequestBody CreateProjectRequest request) {
-        return projectService.create(new CreateProjectCommand(
-                request.name(), request.code(), request.clientLocation(), request.status(), request.description()));
+        return projectService.create(new CreateProjectCommand(request.name(), request.clientLocation()));
     }
 
     @GetMapping("/{projectId}")
@@ -68,7 +67,7 @@ public class ProjectController {
     public void linkMaterial(
             @PathVariable Long projectId, @Valid @RequestBody LinkMaterialRequest request) {
         projectMaterialService.linkMaterial(new com.store.demo.service.dto.LinkMaterialCommand(
-                projectId, request.materialId(), request.defaultLocationOverride()));
+                projectId, request.materialId()));
     }
 
     @DeleteMapping("/{projectId}/materials/{materialId}")

@@ -2,11 +2,12 @@ package com.store.demo.service.dto;
 
 import java.time.OffsetDateTime;
 
-public record MaterialDto(
+public record MaterialSummaryDto(
         Long id,
         String code,
         String name,
         String unit,
         String category,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt) {}
+        OffsetDateTime updatedAt,
+        double onHandQuantity) {}

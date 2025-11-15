@@ -21,6 +21,9 @@ export function MovementTable({ title, movements = [] }) {
       ? Number(value).toLocaleString(undefined, { maximumFractionDigits: fractionDigits })
       : "-";
 
+  const formatDate = (date) => (date ? new Date(date).toLocaleDateString() : "-");
+  const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : "-");
+
   return (
     <Paper elevation={1} sx={{ p: 2, borderRadius: 2, overflowX: "auto" }}>
       <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
@@ -33,31 +36,39 @@ export function MovementTable({ title, movements = [] }) {
             <TableCell>Project</TableCell>
             <TableCell>Material</TableCell>
             <TableCell>Quantity</TableCell>
-            <TableCell>Declared Qty</TableCell>
-            <TableCell>Variance</TableCell>
-            <TableCell>Weight (Tons)</TableCell>
-            <TableCell>Units (Nos)</TableCell>
-            <TableCell>Remaining</TableCell>
-            <TableCell>Batch / Source</TableCell>
-            <TableCell>Vehicle / Issued To</TableCell>
-            <TableCell>Reference</TableCell>
-            <TableCell>Date &amp; Time</TableCell>
+            <TableCell>Invoice / Handover</TableCell>
+            <TableCell>Dates</TableCell>
+            <TableCell>People</TableCell>
+            <TableCell>Vehicle / Notes</TableCell>
             <TableCell>Remarks</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {movements.length === 0 && (
             <TableRow>
-              <TableCell colSpan={13}>
+              <TableCell colSpan={9}>
                 <Box sx={{ textAlign: "center", py: 3, color: "text.secondary" }}>No movements yet.</Box>
               </TableCell>
             </TableRow>
           )}
           {movements.map((movement) => {
             const palette = typeColor[movement.type] || { bg: "grey.200", color: "text.primary" };
-            const vehicleInfo = [movement.vehicleType, movement.vehicleNumber]
-              .filter(Boolean)
-              .join(" / ");
+            const invoiceInfo =
+              movement.type === "IN"
+                ? `${movement.invoiceNumber || "-"}`
+                : movement.handoverName || "-";
+            const dateInfo =
+              movement.type === "IN"
+                ? `${formatDate(movement.invoiceDate)} → ${formatDate(movement.receiveDate)}`
+                : formatDate(movement.handoverDate);
+            const personInfo =
+              movement.type === "IN"
+                ? movement.supplierName || "-"
+                : `${movement.handoverName || "-"}${movement.handoverDesignation ? ` (${movement.handoverDesignation})` : ""}`;
+            const vehicleInfo =
+              movement.type === "IN" ? movement.vehicleNumber || "-" : movement.storeInchargeName || "-";
+            const batchInfo = movement.batchSummary || "-";
+
             return (
               <TableRow key={`${movement.id || movement.movementTime}-${movement.type}-${movement.materialId}`}>
                 <TableCell>
@@ -68,19 +79,20 @@ export function MovementTable({ title, movements = [] }) {
                 <TableCell>{movement.projectName}</TableCell>
                 <TableCell>{movement.materialName}</TableCell>
                 <TableCell>{formatNumber(movement.quantity)}</TableCell>
-                <TableCell>{formatNumber(movement.declaredQuantity)}</TableCell>
-                <TableCell>{formatNumber(movement.variance)}</TableCell>
-                <TableCell>{formatNumber(movement.weightTons)}</TableCell>
                 <TableCell>
-                  {movement.unitsCount !== null && movement.unitsCount !== undefined
-                    ? movement.unitsCount.toLocaleString()
-                    : "-"}
+                  {invoiceInfo}
+                  <br />
+                  {movement.type === "IN" ? formatNumber(movement.invoiceQuantity) : batchInfo}
                 </TableCell>
-                <TableCell>{formatNumber(movement.remainingQuantity)}</TableCell>
-                <TableCell>{movement.batchNumber || "-"}</TableCell>
-                <TableCell>{movement.issuedToOrSupplier || vehicleInfo || "-"}</TableCell>
-                <TableCell>{movement.reference || "-"}</TableCell>
-                <TableCell>{new Date(movement.movementTime).toLocaleString()}</TableCell>
+                <TableCell>
+                  {dateInfo}
+                  <br />
+                  <Typography variant="caption" color="text.secondary">
+                    {formatDateTime(movement.movementTime)}
+                  </Typography>
+                </TableCell>
+                <TableCell>{personInfo}</TableCell>
+                <TableCell>{vehicleInfo}</TableCell>
                 <TableCell>{movement.remarks || "-"}</TableCell>
               </TableRow>
             );

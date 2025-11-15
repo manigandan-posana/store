@@ -3,20 +3,17 @@ import dayjs from "dayjs";
 import { useState } from "react";
 
 const initialState = () => ({
-  quantity: "",
-  declaredQuantity: "",
-  batchNumber: "",
-  weightTons: "",
-  unitsCount: "",
-  movementTime: dayjs().format("YYYY-MM-DDTHH:mm"),
-  vehicleType: "",
+  invoiceNumber: "",
+  invoiceDate: dayjs().format("YYYY-MM-DD"),
+  receiveDate: dayjs().format("YYYY-MM-DD"),
   vehicleNumber: "",
-  supplier: "",
-  reference: "",
+  invoiceQuantity: "",
+  deliveredQuantity: "",
+  supplierName: "",
   remarks: "",
 });
 
-export function InwardForm({ onSubmit, loading }) {
+export function InwardForm({ onSubmit, loading, card = true }) {
   const [form, setForm] = useState(() => initialState());
 
   const handleChange = (e) => {
@@ -27,111 +24,84 @@ export function InwardForm({ onSubmit, loading }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await onSubmit({
-      quantity: Number(form.quantity),
-      declaredQuantity: form.declaredQuantity ? Number(form.declaredQuantity) : null,
-      batchNumber: form.batchNumber || null,
-      weightTons: form.weightTons ? Number(form.weightTons) : null,
-      unitsCount: form.unitsCount ? Number(form.unitsCount) : null,
-      movementTime: form.movementTime ? new Date(form.movementTime).toISOString() : null,
-      vehicleType: form.vehicleType || null,
+      invoiceNumber: form.invoiceNumber,
+      invoiceDate: form.invoiceDate || null,
+      receiveDate: form.receiveDate || null,
       vehicleNumber: form.vehicleNumber || null,
-      supplier: form.supplier || null,
-      reference: form.reference || null,
+      invoiceQuantity: form.invoiceQuantity ? Number(form.invoiceQuantity) : null,
+      deliveredQuantity: form.deliveredQuantity ? Number(form.deliveredQuantity) : null,
+      supplierName: form.supplierName || null,
       remarks: form.remarks || null,
     });
     setForm(initialState());
   };
 
+  const Wrapper = card ? Paper : Box;
+  const wrapperProps = card
+    ? { elevation: 1, sx: { p: 3, borderRadius: 2 } }
+    : { sx: { p: { xs: 0.5, md: 1 } } };
+
   return (
-    <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+    <Wrapper {...wrapperProps}>
       <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-        Record Inward (New Batch)
+        Record Inward (Invoice Entry)
       </Typography>
       <Box component="form" onSubmit={handleSubmit}>
         <Grid container spacing={2}>
           <Grid item xs={12} md={4}>
             <TextField
-              name="quantity"
-              label="Quantity"
+              name="invoiceNumber"
+              label="Invoice Number"
+              required
+              fullWidth
+              value={form.invoiceNumber}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              name="invoiceDate"
+              label="Invoice Date"
+              type="date"
+              required
+              fullWidth
+              value={form.invoiceDate}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              name="receiveDate"
+              label="Receiving Date"
+              type="date"
+              required
+              fullWidth
+              value={form.receiveDate}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              name="invoiceQuantity"
+              label="Invoice Quantity"
               type="number"
               required
               fullWidth
-              value={form.quantity}
+              value={form.invoiceQuantity}
               onChange={handleChange}
               inputProps={{ step: "0.001", min: "0" }}
             />
           </Grid>
           <Grid item xs={12} md={4}>
             <TextField
-              name="declaredQuantity"
-              label="Declared Quantity"
+              name="deliveredQuantity"
+              label="Actual Delivered Quantity"
               type="number"
-              fullWidth
-              value={form.declaredQuantity}
-              onChange={handleChange}
-              inputProps={{ step: "0.001", min: "0" }}
-              helperText="Manifested quantity"
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              name="batchNumber"
-              label="Batch / Vehicle Identifier"
-              fullWidth
-              value={form.batchNumber}
-              onChange={handleChange}
-              helperText="E.g. Truck number, lot number"
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              name="weightTons"
-              label="Weight (Tons)"
-              type="number"
-              fullWidth
-              value={form.weightTons}
-              onChange={handleChange}
-              inputProps={{ step: "0.001", min: "0" }}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              name="unitsCount"
-              label="Units (Nos)"
-              type="number"
-              fullWidth
-              value={form.unitsCount}
-              onChange={handleChange}
-              inputProps={{ step: "1", min: "0" }}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              name="movementTime"
-              label="Inward Date & Time"
-              type="datetime-local"
               required
               fullWidth
-              value={form.movementTime}
+              value={form.deliveredQuantity}
               onChange={handleChange}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              name="supplier"
-              label="Supplier"
-              fullWidth
-              value={form.supplier}
-              onChange={handleChange}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              name="vehicleType"
-              label="Vehicle Type"
-              fullWidth
-              value={form.vehicleType}
-              onChange={handleChange}
+              inputProps={{ step: "0.001", min: "0" }}
             />
           </Grid>
           <Grid item xs={12} md={4}>
@@ -143,16 +113,16 @@ export function InwardForm({ onSubmit, loading }) {
               onChange={handleChange}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={6}>
             <TextField
-              name="reference"
-              label="Reference (PO / Invoice / DC)"
+              name="supplierName"
+              label="Supplier Name"
               fullWidth
-              value={form.reference}
+              value={form.supplierName}
               onChange={handleChange}
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid item xs={12} md={6}>
             <TextField
               name="remarks"
               label="Remarks"
@@ -170,6 +140,6 @@ export function InwardForm({ onSubmit, loading }) {
           </Button>
         </Box>
       </Box>
-    </Paper>
+    </Wrapper>
   );
 }

@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -20,8 +21,8 @@ public class InwardEntry {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "project_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
     private Project project;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -43,6 +44,9 @@ public class InwardEntry {
     @Column(name = "declared_quantity", precision = 19, scale = 3)
     private BigDecimal declaredQuantity;
 
+    @Column(name = "invoice_quantity", precision = 19, scale = 3)
+    private BigDecimal invoiceQuantity;
+
     @Column(name = "weight_tons", precision = 19, scale = 3)
     private BigDecimal weightTons;
 
@@ -60,6 +64,15 @@ public class InwardEntry {
 
     @Column(length = 128)
     private String reference;
+
+    @Column(name = "invoice_number", length = 128)
+    private String invoiceNumber;
+
+    @Column(name = "invoice_date")
+    private LocalDate invoiceDate;
+
+    @Column(name = "receive_date")
+    private LocalDate receiveDate;
 
     @Column(length = 512)
     private String remarks;
@@ -131,6 +144,14 @@ public class InwardEntry {
         this.declaredQuantity = declaredQuantity;
     }
 
+    public BigDecimal getInvoiceQuantity() {
+        return invoiceQuantity;
+    }
+
+    public void setInvoiceQuantity(BigDecimal invoiceQuantity) {
+        this.invoiceQuantity = invoiceQuantity;
+    }
+
     public BigDecimal getWeightTons() {
         return weightTons;
     }
@@ -177,6 +198,30 @@ public class InwardEntry {
 
     public void setReference(String reference) {
         this.reference = reference;
+    }
+
+    public String getInvoiceNumber() {
+        return invoiceNumber;
+    }
+
+    public void setInvoiceNumber(String invoiceNumber) {
+        this.invoiceNumber = invoiceNumber;
+    }
+
+    public LocalDate getInvoiceDate() {
+        return invoiceDate;
+    }
+
+    public void setInvoiceDate(LocalDate invoiceDate) {
+        this.invoiceDate = invoiceDate;
+    }
+
+    public LocalDate getReceiveDate() {
+        return receiveDate;
+    }
+
+    public void setReceiveDate(LocalDate receiveDate) {
+        this.receiveDate = receiveDate;
     }
 
     public String getRemarks() {

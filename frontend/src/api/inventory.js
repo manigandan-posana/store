@@ -13,3 +13,17 @@ export function recordOutward(projectId, materialId, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function recordMaterialInward(materialId, payload) {
+  return apiFetch(`/materials/${materialId}/inventory/inwards`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function recordMaterialOutward(materialId, payload) {
+  return apiFetch(`/materials/${materialId}/inventory/outwards`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

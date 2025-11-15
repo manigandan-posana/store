@@ -14,3 +14,9 @@ export function createBackofficeUser(payload) {
 export function fetchInventoryAnalytics() {
   return apiFetch("/admin/analytics/inventory", { method: "GET" });
 }
+
+export function fetchInventoryMovementReport(projectId) {
+  const hasProject = projectId !== undefined && projectId !== null;
+  const query = hasProject ? `?projectId=${projectId}` : "";
+  return apiFetch(`/admin/analytics/movements${query}`, { method: "GET" });
+}

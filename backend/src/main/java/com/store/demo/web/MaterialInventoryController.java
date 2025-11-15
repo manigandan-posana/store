@@ -17,24 +17,22 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/projects/{projectId}/materials/{materialId}")
-public class InventoryController {
+@RequestMapping("/api/materials/{materialId}/inventory")
+@PreAuthorize("hasRole('BACKOFFICE')")
+public class MaterialInventoryController {
 
     private final InventoryService inventoryService;
 
-    public InventoryController(InventoryService inventoryService) {
+    public MaterialInventoryController(InventoryService inventoryService) {
         this.inventoryService = inventoryService;
     }
 
     @PostMapping("/inwards")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('BACKOFFICE')")
-    public MovementDto recordInward(
-            @PathVariable Long projectId,
-            @PathVariable Long materialId,
-            @Valid @RequestBody RecordInwardRequest request) {
+    public MovementDto recordStandaloneInward(
+            @PathVariable Long materialId, @Valid @RequestBody RecordInwardRequest request) {
         return inventoryService.recordInward(new RecordInwardCommand(
-                projectId,
+                null,
                 materialId,
                 request.deliveredQuantity(),
                 request.invoiceQuantity(),
@@ -48,13 +46,10 @@ public class InventoryController {
 
     @PostMapping("/outwards")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('BACKOFFICE')")
-    public MovementDto recordOutward(
-            @PathVariable Long projectId,
-            @PathVariable Long materialId,
-            @Valid @RequestBody RecordOutwardRequest request) {
+    public MovementDto recordStandaloneOutward(
+            @PathVariable Long materialId, @Valid @RequestBody RecordOutwardRequest request) {
         return inventoryService.recordOutward(new RecordOutwardCommand(
-                projectId,
+                null,
                 materialId,
                 request.quantity(),
                 request.handoverDate(),

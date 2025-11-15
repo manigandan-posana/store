@@ -5,5 +5,4 @@ public record CreateMaterialCommand(
         String code,
         String unit,
         String category,
-        Integer minimumStock,
-        String defaultLocation) {}
+        Double initialQuantity) {}
