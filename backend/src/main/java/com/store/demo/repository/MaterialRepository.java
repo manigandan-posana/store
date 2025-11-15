@@ -8,4 +8,6 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
     boolean existsByCodeIgnoreCase(String code);
 
     Optional<Material> findByCodeIgnoreCase(String code);
+
+    boolean existsByCodeIgnoreCaseAndIdNot(String code, Long id);
 }

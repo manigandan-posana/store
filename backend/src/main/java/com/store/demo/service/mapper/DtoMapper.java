@@ -29,8 +29,6 @@ public class DtoMapper {
                 material.getName(),
                 material.getUnit(),
                 material.getCategory(),
-                material.getMinimumStock(),
-                material.getDefaultLocation(),
                 material.getCreatedAt(),
                 material.getUpdatedAt());
     }

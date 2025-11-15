@@ -4,11 +4,10 @@ import { useState } from "react";
 
 const initialState = () => ({
   quantity: "",
-  weightTons: "",
-  unitsCount: "",
-  movementTime: dayjs().format("YYYY-MM-DDTHH:mm"),
-  issuedTo: "",
-  reference: "",
+  handoverDate: dayjs().format("YYYY-MM-DD"),
+  handoverName: "",
+  handoverDesignation: "",
+  storeInchargeName: "",
   remarks: "",
 });
 
@@ -23,12 +22,11 @@ export function OutwardForm({ onSubmit, loading }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await onSubmit({
-      quantity: Number(form.quantity),
-      weightTons: form.weightTons ? Number(form.weightTons) : null,
-      unitsCount: form.unitsCount ? Number(form.unitsCount) : null,
-      movementTime: form.movementTime ? new Date(form.movementTime).toISOString() : null,
-      issuedTo: form.issuedTo,
-      reference: form.reference || null,
+      quantity: form.quantity ? Number(form.quantity) : null,
+      handoverDate: form.handoverDate || null,
+      handoverName: form.handoverName,
+      handoverDesignation: form.handoverDesignation || null,
+      storeInchargeName: form.storeInchargeName,
       remarks: form.remarks || null,
     });
     setForm(initialState());
@@ -37,7 +35,7 @@ export function OutwardForm({ onSubmit, loading }) {
   return (
     <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
       <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-        Record Outward (FIFO)
+        Record Outward (Handover)
       </Typography>
       <Box component="form" onSubmit={handleSubmit}>
         <Grid container spacing={2}>
@@ -55,61 +53,51 @@ export function OutwardForm({ onSubmit, loading }) {
           </Grid>
           <Grid item xs={12} md={4}>
             <TextField
-              name="weightTons"
-              label="Weight (Tons)"
-              type="number"
-              fullWidth
-              value={form.weightTons}
-              onChange={handleChange}
-              inputProps={{ step: "0.001", min: "0" }}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              name="unitsCount"
-              label="Units (Nos)"
-              type="number"
-              fullWidth
-              value={form.unitsCount}
-              onChange={handleChange}
-              inputProps={{ step: "1", min: "0" }}
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              name="movementTime"
-              label="Outward Date & Time"
-              type="datetime-local"
+              name="handoverDate"
+              label="Handover Date"
+              type="date"
               required
               fullWidth
-              value={form.movementTime}
+              value={form.handoverDate}
               onChange={handleChange}
             />
           </Grid>
           <Grid item xs={12} md={4}>
             <TextField
-              name="issuedTo"
-              label="Issued To / Target Location"
+              name="handoverName"
+              label="Handover Name"
               required
               fullWidth
-              value={form.issuedTo}
+              value={form.handoverName}
               onChange={handleChange}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
-              name="reference"
-              label="Reference (DC / Request No)"
+              name="handoverDesignation"
+              label="Handover Designation"
               fullWidth
-              value={form.reference}
+              value={form.handoverDesignation}
               onChange={handleChange}
             />
           </Grid>
           <Grid item xs={12} md={6}>
+            <TextField
+              name="storeInchargeName"
+              label="Store Incharge Name"
+              required
+              fullWidth
+              value={form.storeInchargeName}
+              onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12}>
             <TextField
               name="remarks"
               label="Remarks"
               fullWidth
+              multiline
+              minRows={2}
               value={form.remarks}
               onChange={handleChange}
             />
