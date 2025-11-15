@@ -16,6 +16,7 @@ const INITIAL_FORM = {
   code: "",
   unit: "",
   category: "",
+  initialQuantity: "",
 };
 
 export function MaterialQuickCreateDialog({ open, onClose, onCreated }) {
@@ -47,6 +48,8 @@ export function MaterialQuickCreateDialog({ open, onClose, onCreated }) {
         code: form.code.trim(),
         unit: form.unit.trim() || null,
         category: form.category.trim() || null,
+        initialQuantity:
+          form.initialQuantity !== "" ? Number.parseFloat(form.initialQuantity) || 0 : 0,
       };
       const material = await createMaterial(payload);
       notify(`Material ${material.name} created`, "success");
@@ -83,6 +86,15 @@ export function MaterialQuickCreateDialog({ open, onClose, onCreated }) {
           />
           <TextField label="UOM (Unit of Measure)" name="unit" value={form.unit} onChange={handleChange} fullWidth />
           <TextField label="Line Type" name="category" value={form.category} onChange={handleChange} fullWidth />
+          <TextField
+            label="In-hand Quantity"
+            name="initialQuantity"
+            type="number"
+            inputProps={{ min: 0, step: "0.01" }}
+            value={form.initialQuantity}
+            onChange={handleChange}
+            fullWidth
+          />
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3 }}>

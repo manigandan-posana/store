@@ -39,6 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class InventoryService {
 
+    private static final String GENERAL_STORE_LABEL = "General Store";
+
     private final InwardEntryRepository inwardEntryRepository;
     private final OutwardEntryRepository outwardEntryRepository;
     private final ProjectMaterialRepository projectMaterialRepository;
@@ -64,9 +66,12 @@ public class InventoryService {
     public MovementDto recordInward(RecordInwardCommand command) {
         validateQuantity(command.deliveredQuantity());
         validateQuantity(command.invoiceQuantity());
-        Project project = projectService.getProjectEntity(command.projectId());
         Material material = materialService.getMaterialEntity(command.materialId());
-        ensureMaterialLinked(project, material);
+        Project project = null;
+        if (command.projectId() != null) {
+            project = projectService.getProjectEntity(command.projectId());
+            ensureMaterialLinked(project, material);
+        }
 
         OffsetDateTime movementTime = toMovementTime(command.receiveDate());
         BigDecimal quantity = BigDecimal.valueOf(command.deliveredQuantity()).setScale(3, RoundingMode.HALF_UP);
@@ -94,12 +99,16 @@ public class InventoryService {
 
     public MovementDto recordOutward(RecordOutwardCommand command) {
         validateQuantity(command.quantity());
-        Project project = projectService.getProjectEntity(command.projectId());
         Material material = materialService.getMaterialEntity(command.materialId());
-        ensureMaterialLinked(project, material);
+        Project project = null;
+        if (command.projectId() != null) {
+            project = projectService.getProjectEntity(command.projectId());
+            ensureMaterialLinked(project, material);
+        }
 
-        List<InwardEntry> batches = inwardEntryRepository
-                .findByProjectAndMaterialOrderByMovementTimeAsc(project, material)
+        List<InwardEntry> batches = ((project != null)
+                        ? inwardEntryRepository.findByProjectAndMaterialOrderByMovementTimeAsc(project, material)
+                        : inwardEntryRepository.findByProjectIsNullAndMaterialOrderByMovementTimeAsc(material))
                 .stream()
                 .filter(batch -> batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0)
                 .collect(Collectors.toList());
@@ -199,9 +208,25 @@ public class InventoryService {
     }
 
     @Transactional(readOnly = true)
+    public List<MaterialStatsDto> getGeneralMaterialStats() {
+        java.util.Set<Long> materialIds = new java.util.LinkedHashSet<>();
+        inwardEntryRepository.findByProjectIsNull().forEach(entry -> materialIds.add(entry.getMaterial().getId()));
+        outwardEntryRepository.findByProjectIsNull().forEach(entry -> materialIds.add(entry.getMaterial().getId()));
+        return materialIds.stream()
+                .map(materialService::getMaterialEntity)
+                .map(material -> buildStats(null, material))
+                .sorted(Comparator.comparing(MaterialStatsDto::materialName))
+                .toList();
+    }
+
+    public ProjectDto getGeneralProjectDescriptor() {
+        return generalProjectDto();
+    }
+
+    @Transactional(readOnly = true)
     public List<MovementDto> getRecentActivity(Long projectId, int limit) {
         List<MovementDto> movements = new ArrayList<>();
-        if (projectId != null) {
+        if (projectId != null && projectId > 0) {
             Project project = projectService.getProjectEntity(projectId);
             movements.addAll(inwardEntryRepository
                     .findByProject(project)
@@ -212,6 +237,13 @@ public class InventoryService {
                     .findByProject(project)
                     .stream()
                     .map(entry -> toOutwardMovement(project, entry.getMaterial(), entry))
+                    .toList());
+        } else if (projectId != null && projectId == 0L) {
+            movements.addAll(inwardEntryRepository.findByProjectIsNull().stream()
+                    .map(entry -> toInwardMovement(null, entry.getMaterial(), entry))
+                    .toList());
+            movements.addAll(outwardEntryRepository.findByProjectIsNull().stream()
+                    .map(entry -> toOutwardMovement(null, entry.getMaterial(), entry))
                     .toList());
         } else {
             movements.addAll(inwardEntryRepository.findAll().stream()
@@ -268,17 +300,32 @@ public class InventoryService {
 
     @Transactional(readOnly = true)
     public InventoryMovementReportDto getInventoryMovementReport(Long projectId) {
-        List<ProjectDto> projects = projectService.findAll();
+        List<ProjectDto> projects = new ArrayList<>();
+        projects.add(generalProjectDto());
+        projects.addAll(projectService.findAll());
 
-        final Project selectedProjectEntity = projectId != null
+        boolean generalOnly = projectId != null && projectId == 0L;
+        final Project selectedProjectEntity = projectId != null && projectId > 0
                 ? projectService.getProjectEntity(projectId)
                 : null;
-        final ProjectDto selectedProject = selectedProjectEntity != null
-                ? mapper.toProjectDto(selectedProjectEntity)
-                : null;
+        final ProjectDto selectedProject;
+        if (generalOnly) {
+            selectedProject = generalProjectDto();
+        } else if (selectedProjectEntity != null) {
+            selectedProject = mapper.toProjectDto(selectedProjectEntity);
+        } else {
+            selectedProject = null;
+        }
 
         List<MovementDto> movements = new ArrayList<>();
-        if (selectedProjectEntity != null) {
+        if (generalOnly) {
+            movements.addAll(inwardEntryRepository.findByProjectIsNull().stream()
+                    .map(entry -> toInwardMovement(null, entry.getMaterial(), entry))
+                    .toList());
+            movements.addAll(outwardEntryRepository.findByProjectIsNull().stream()
+                    .map(entry -> toOutwardMovement(null, entry.getMaterial(), entry))
+                    .toList());
+        } else if (selectedProjectEntity != null) {
             movements.addAll(inwardEntryRepository.findByProject(selectedProjectEntity).stream()
                     .map(entry -> toInwardMovement(selectedProjectEntity, entry.getMaterial(), entry))
                     .toList());
@@ -310,6 +357,7 @@ public class InventoryService {
 
     private List<ProjectConsumptionResponse> buildProjectConsumption() {
         return outwardEntryRepository.findAll().stream()
+                .filter(entry -> entry.getProject() != null)
                 .collect(Collectors.groupingBy(OutwardEntry::getProject, Collectors.groupingBy(OutwardEntry::getMaterial)))
                 .entrySet()
                 .stream()
@@ -348,13 +396,84 @@ public class InventoryService {
     }
 
     private void ensureMaterialLinked(Project project, Material material) {
+        if (project == null) {
+            return;
+        }
         boolean linked = projectMaterialRepository.existsByProjectAndMaterial(project, material);
         if (!linked) {
             throw new BadRequestException("Material is not linked with project");
         }
     }
 
+    private ProjectDto generalProjectDto() {
+        return new ProjectDto(0L, "GENERAL", GENERAL_STORE_LABEL, "–", "Standalone", "Unassigned stock movements", null, null);
+    }
+
     private MaterialStatsDto buildStats(Project project, Material material) {
+        if (project == null) {
+            List<InwardEntry> generalInwards = inwardEntryRepository
+                    .findByProjectIsNullAndMaterialOrderByMovementTimeAsc(material);
+            List<OutwardEntry> generalOutwards = outwardEntryRepository
+                    .findByProjectIsNullAndMaterialOrderByMovementTimeDesc(material);
+
+            BigDecimal totalIn = generalInwards.stream()
+                    .map(InwardEntry::getQuantity)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalOut = generalOutwards.stream()
+                    .map(OutwardEntry::getQuantity)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalInWeight = generalInwards.stream()
+                    .map(InwardEntry::getWeightTons)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal totalOutWeight = generalOutwards.stream()
+                    .map(OutwardEntry::getWeightTons)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            long totalInUnits = generalInwards.stream()
+                    .map(InwardEntry::getUnitsCount)
+                    .filter(Objects::nonNull)
+                    .mapToLong(Integer::longValue)
+                    .sum();
+            long totalOutUnits = generalOutwards.stream()
+                    .map(OutwardEntry::getUnitsCount)
+                    .filter(Objects::nonNull)
+                    .mapToLong(Integer::longValue)
+                    .sum();
+
+            OffsetDateTime lastIn = generalInwards.stream()
+                    .map(InwardEntry::getMovementTime)
+                    .filter(Objects::nonNull)
+                    .max(Comparator.naturalOrder())
+                    .orElse(null);
+            OffsetDateTime lastOut = generalOutwards.stream()
+                    .map(OutwardEntry::getMovementTime)
+                    .filter(Objects::nonNull)
+                    .max(Comparator.naturalOrder())
+                    .orElse(null);
+
+            BigDecimal currentStock = totalIn.subtract(totalOut);
+            BigDecimal currentWeight = totalInWeight.subtract(totalOutWeight);
+            long currentUnits = totalInUnits - totalOutUnits;
+
+            return new MaterialStatsDto(
+                    material.getId(),
+                    material.getName(),
+                    material.getCode(),
+                    material.getUnit(),
+                    toDouble(totalIn),
+                    toDouble(totalOut),
+                    toDouble(currentStock),
+                    lastIn,
+                    lastOut,
+                    toDouble(totalInWeight),
+                    toDouble(totalOutWeight),
+                    toDouble(currentWeight),
+                    totalInUnits,
+                    totalOutUnits,
+                    currentUnits);
+        }
+
         BigDecimal totalIn = Optional.ofNullable(inwardEntryRepository
                         .sumQuantityByProjectAndMaterial(project, material))
                 .orElse(BigDecimal.ZERO);
@@ -421,11 +540,13 @@ public class InventoryService {
         BigDecimal invoiceQuantity = entry.getInvoiceQuantity() != null
                 ? entry.getInvoiceQuantity()
                 : entry.getQuantity();
+        Long projectId = project != null ? project.getId() : null;
+        String projectName = project != null ? project.getName() : GENERAL_STORE_LABEL;
         return new MovementDto(
                 entry.getId(),
                 "IN",
-                project.getId(),
-                project.getName(),
+                projectId,
+                projectName,
                 material.getId(),
                 material.getName(),
                 entry.getQuantity().doubleValue(),
@@ -446,6 +567,8 @@ public class InventoryService {
     }
 
     private MovementDto toOutwardMovement(Project project, Material material, OutwardEntry entry) {
+        Long projectId = project != null ? project.getId() : null;
+        String projectName = project != null ? project.getName() : GENERAL_STORE_LABEL;
         String batchInfo = entry.getBatchConsumptions().stream()
                 .map(consumption -> {
                     InwardEntry inward = consumption.getInwardEntry();
@@ -466,8 +589,8 @@ public class InventoryService {
         return new MovementDto(
                 entry.getId(),
                 "OUT",
-                project.getId(),
-                project.getName(),
+                projectId,
+                projectName,
                 material.getId(),
                 material.getName(),
                 entry.getQuantity().doubleValue(),

@@ -7,6 +7,7 @@ import {
   InputLabel,
   MenuItem,
   Paper,
+  Pagination,
   Select,
   Stack,
   Table,
@@ -34,6 +35,8 @@ export function AdminDashboardPage() {
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [materialsMap, setMaterialsMap] = useState({});
+  const [movementPage, setMovementPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   useEffect(() => {
     listMaterials()
@@ -62,6 +65,10 @@ export function AdminDashboardPage() {
     };
     loadReport();
   }, [projectFilter, notify]);
+
+  useEffect(() => {
+    setMovementPage(1);
+  }, [projectFilter, typeFilter, search, rowsPerPage]);
 
   const formatNumber = (value, fractionDigits = 2) =>
     value !== null && value !== undefined
@@ -94,6 +101,22 @@ export function AdminDashboardPage() {
       return values.some((value) => value?.toLowerCase?.().includes(query));
     });
   }, [report, search, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMovements.length / rowsPerPage));
+
+  const paginatedMovements = useMemo(() => {
+    if (!filteredMovements.length) {
+      return [];
+    }
+    const start = (movementPage - 1) * rowsPerPage;
+    return filteredMovements.slice(start, start + rowsPerPage);
+  }, [filteredMovements, movementPage, rowsPerPage]);
+
+  useEffect(() => {
+    if (movementPage > totalPages) {
+      setMovementPage(totalPages);
+    }
+  }, [movementPage, totalPages]);
 
   const movementCounts = useMemo(() => {
     return filteredMovements.reduce(
@@ -189,6 +212,21 @@ export function AdminDashboardPage() {
             }}
             sx={{ width: { xs: "100%", md: 320 } }}
           />
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel id="rows-per-page-label">Rows</InputLabel>
+            <Select
+              labelId="rows-per-page-label"
+              label="Rows"
+              value={rowsPerPage}
+              onChange={(event) => setRowsPerPage(Number(event.target.value))}
+            >
+              {[10, 25, 50, 100].map((size) => (
+                <MenuItem key={size} value={size}>
+                  {size} / page
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
@@ -250,7 +288,7 @@ export function AdminDashboardPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredMovements.map((movement) => {
+                {paginatedMovements.map((movement) => {
                   const invoiceInfo =
                     movement.type === "IN"
                       ? movement.invoiceNumber || "-"
@@ -295,6 +333,29 @@ export function AdminDashboardPage() {
               </TableBody>
             </Table>
           </TableContainer>
+        )}
+
+        {filteredMovements.length > rowsPerPage && (
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+            sx={{ mt: 3 }}
+            spacing={2}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Showing {paginatedMovements.length} of {filteredMovements.length} records
+            </Typography>
+            <Pagination
+              count={totalPages}
+              page={movementPage}
+              color="primary"
+              shape="rounded"
+              onChange={(_, value) => setMovementPage(value)}
+              showFirstButton
+              showLastButton
+            />
+          </Stack>
         )}
       </Paper>
     </Box>

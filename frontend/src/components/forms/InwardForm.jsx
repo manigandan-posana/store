@@ -13,7 +13,7 @@ const initialState = () => ({
   remarks: "",
 });
 
-export function InwardForm({ onSubmit, loading }) {
+export function InwardForm({ onSubmit, loading, card = true }) {
   const [form, setForm] = useState(() => initialState());
 
   const handleChange = (e) => {
@@ -36,8 +36,13 @@ export function InwardForm({ onSubmit, loading }) {
     setForm(initialState());
   };
 
+  const Wrapper = card ? Paper : Box;
+  const wrapperProps = card
+    ? { elevation: 1, sx: { p: 3, borderRadius: 2 } }
+    : { sx: { p: { xs: 0.5, md: 1 } } };
+
   return (
-    <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+    <Wrapper {...wrapperProps}>
       <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
         Record Inward (Invoice Entry)
       </Typography>
@@ -135,6 +140,6 @@ export function InwardForm({ onSubmit, loading }) {
           </Button>
         </Box>
       </Box>
-    </Paper>
+    </Wrapper>
   );
 }

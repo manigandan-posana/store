@@ -16,6 +16,7 @@ export function fetchInventoryAnalytics() {
 }
 
 export function fetchInventoryMovementReport(projectId) {
-  const query = projectId ? `?projectId=${projectId}` : "";
+  const hasProject = projectId !== undefined && projectId !== null;
+  const query = hasProject ? `?projectId=${projectId}` : "";
   return apiFetch(`/admin/analytics/movements${query}`, { method: "GET" });
 }

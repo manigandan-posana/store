@@ -40,7 +40,7 @@ public class MaterialController {
     @PreAuthorize("hasRole('BACKOFFICE')")
     public MaterialSummaryDto createMaterial(@Valid @RequestBody CreateMaterialRequest request) {
         return materialService.create(new CreateMaterialCommand(
-                request.name(), request.code(), request.unit(), request.category()));
+                request.name(), request.code(), request.unit(), request.category(), request.initialQuantity()));
     }
 
     @PutMapping("/{materialId}")

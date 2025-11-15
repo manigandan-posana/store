@@ -31,6 +31,7 @@ import AddIcon from "@mui/icons-material/Add";
 import { useTheme } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
 import { createMaterial, deleteMaterial, listMaterials, updateMaterial } from "../api/materials";
+import { recordMaterialInward, recordMaterialOutward } from "../api/inventory";
 import { useNotification } from "../providers/NotificationProvider";
 import { sanitizeMaterialPayload } from "../utils/materials";
 
@@ -39,6 +40,7 @@ const initialForm = {
   code: "",
   unit: "",
   category: "",
+  initialQuantity: "",
 };
 
 export function MaterialsPage() {
@@ -50,6 +52,11 @@ export function MaterialsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [activeMaterial, setActiveMaterial] = useState(null);
+  const [inwardDialogOpen, setInwardDialogOpen] = useState(false);
+  const [outwardDialogOpen, setOutwardDialogOpen] = useState(false);
+  const [savingInward, setSavingInward] = useState(false);
+  const [savingOutward, setSavingOutward] = useState(false);
   const { notify } = useNotification();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -127,6 +134,9 @@ export function MaterialsPage() {
     setSubmitting(true);
     try {
       const payload = sanitizeMaterialPayload(form);
+      if (editingMaterial) {
+        delete payload.initialQuantity;
+      }
       if (!payload.name || !payload.code) {
         notify("Material name and drawing number are required", "warning");
         return;
@@ -154,6 +164,7 @@ export function MaterialsPage() {
       code: material.code || "",
       unit: material.unit || "",
       category: material.category || "",
+      initialQuantity: "",
     });
     setFormOpen(true);
   };
@@ -171,6 +182,66 @@ export function MaterialsPage() {
       await loadMaterials();
     } catch (error) {
       notify(error.message || "Failed to delete material", "error");
+    }
+  };
+
+  const openInwardDialog = (material) => {
+    setActiveMaterial(material);
+    setInwardDialogOpen(true);
+  };
+
+  const openOutwardDialog = (material) => {
+    setActiveMaterial(material);
+    setOutwardDialogOpen(true);
+  };
+
+  const closeInwardDialog = () => {
+    if (savingInward) return;
+    setInwardDialogOpen(false);
+    setActiveMaterial(null);
+  };
+
+  const closeOutwardDialog = () => {
+    if (savingOutward) return;
+    setOutwardDialogOpen(false);
+    setActiveMaterial(null);
+  };
+
+  const handleRecordInward = async (payload) => {
+    if (!activeMaterial) {
+      notify("Select a material to record inward movement", "warning");
+      return;
+    }
+    setSavingInward(true);
+    try {
+      await recordMaterialInward(activeMaterial.id, payload);
+      notify("Inward entry recorded", "success");
+      setInwardDialogOpen(false);
+      setActiveMaterial(null);
+      await loadMaterials();
+    } catch (error) {
+      notify(error.message || "Failed to record inward", "error");
+    } finally {
+      setSavingInward(false);
+    }
+  };
+
+  const handleRecordOutward = async (payload) => {
+    if (!activeMaterial) {
+      notify("Select a material to record outward movement", "warning");
+      return;
+    }
+    setSavingOutward(true);
+    try {
+      await recordMaterialOutward(activeMaterial.id, payload);
+      notify("Outward entry recorded", "success");
+      setOutwardDialogOpen(false);
+      setActiveMaterial(null);
+      await loadMaterials();
+    } catch (error) {
+      notify(error.message || "Failed to record outward", "error");
+    } finally {
+      setSavingOutward(false);
     }
   };
 
@@ -290,6 +361,22 @@ export function MaterialsPage() {
                             )}
                           </Stack>
                           <Stack direction="row" spacing={1} flexWrap="wrap">
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="success"
+                              onClick={() => openInwardDialog(material)}
+                            >
+                              Record Inward
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="error"
+                              onClick={() => openOutwardDialog(material)}
+                            >
+                              Record Outward
+                            </Button>
                             <Button size="small" variant="outlined" onClick={() => handleEdit(material)}>
                               Edit
                             </Button>
@@ -370,7 +457,23 @@ export function MaterialsPage() {
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
-                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="success"
+                                onClick={() => openInwardDialog(material)}
+                              >
+                                Inward
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                onClick={() => openOutwardDialog(material)}
+                              >
+                                Outward
+                              </Button>
                               <IconButton size="small" color="primary" onClick={() => handleEdit(material)}>
                                 <EditIcon fontSize="small" />
                               </IconButton>
@@ -464,6 +567,17 @@ export function MaterialsPage() {
               onChange={handleChange}
               fullWidth
             />
+            {!editingMaterial && (
+              <TextField
+                name="initialQuantity"
+                label="In-hand Quantity"
+                type="number"
+                inputProps={{ min: 0, step: "0.01" }}
+                value={form.initialQuantity}
+                onChange={handleChange}
+                fullWidth
+              />
+            )}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2.5 }}>
@@ -478,6 +592,52 @@ export function MaterialsPage() {
             sx={{ borderRadius: 999, px: 3 }}
           >
             {editingMaterial ? "Update material" : "Save material"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={inwardDialogOpen}
+        onClose={closeInwardDialog}
+        fullScreen={isMobile}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          Record inward – {activeMaterial?.name || "Material"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Entries captured here are tracked against the general store (not linked to a project).
+          </Typography>
+          <InwardForm onSubmit={handleRecordInward} loading={savingInward} card={false} />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2.5 }}>
+          <Button onClick={closeInwardDialog} color="inherit" disabled={savingInward}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={outwardDialogOpen}
+        onClose={closeOutwardDialog}
+        fullScreen={isMobile}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          Record outward – {activeMaterial?.name || "Material"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Handover entries reduce stock from the general store for this material.
+          </Typography>
+          <OutwardForm onSubmit={handleRecordOutward} loading={savingOutward} card={false} />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2.5 }}>
+          <Button onClick={closeOutwardDialog} color="inherit" disabled={savingOutward}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>

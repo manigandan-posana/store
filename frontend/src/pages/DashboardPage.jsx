@@ -189,7 +189,7 @@ function MovementList({ title, movements, emptyMessage, unit }) {
   );
 }
 
-function MaterialCard({ summary, selected, onSelect, onInward, onOutward, onUnlink }) {
+function MaterialCard({ summary, selected, onSelect, onInward, onOutward, onUnlink, canRecord = true }) {
   const handleSelect = () => {
     onSelect(summary.materialId);
   };
@@ -255,9 +255,11 @@ function MaterialCard({ summary, selected, onSelect, onInward, onOutward, onUnli
             variant="contained"
             onClick={(event) => {
               event.stopPropagation();
+              if (!canRecord) return;
               onSelect(summary.materialId);
               onInward();
             }}
+            disabled={!canRecord}
           >
             Record inward
           </Button>
@@ -267,9 +269,11 @@ function MaterialCard({ summary, selected, onSelect, onInward, onOutward, onUnli
             color="error"
             onClick={(event) => {
               event.stopPropagation();
+              if (!canRecord) return;
               onSelect(summary.materialId);
               onOutward();
             }}
+            disabled={!canRecord}
           >
             Record outward
           </Button>
@@ -591,123 +595,6 @@ export function DashboardPage() {
     );
   }, [materialOptions]);
 
-  const materialOptions = dashboard?.materialSummaries ?? [];
-
-  const availableMaterials = useMemo(() => {
-    const linkedIds = new Set(materialOptions.map((item) => item.materialId));
-    return allMaterials.filter((material) => !linkedIds.has(material.id));
-  }, [allMaterials, materialOptions]);
-
-  const handleProjectCreated = async (values) => {
-    try {
-      const project = await createProject(values);
-      notify(`Project "${project.name}" created`, "success");
-      setProjectDialogOpen(false);
-      setSelectedProjectId(project.id);
-      await loadDashboard(project.id);
-    } catch (error) {
-      notify(error.message || "Failed to create project", "error");
-    }
-  };
-
-  const handleLinkMaterial = async ({ materialId }) => {
-    if (!selectedProjectId) {
-      notify("Select a project first", "warning");
-      return;
-    }
-    try {
-      await linkMaterial(selectedProjectId, { materialId });
-      notify("Material linked to project", "success");
-      setMaterialDialogOpen(false);
-      await loadDashboard(selectedProjectId);
-      setSelectedMaterialId(materialId);
-    } catch (error) {
-      notify(error.message || "Failed to link material", "error");
-    }
-  };
-
-  const handleCreateMaterial = async (payload) => {
-    const sanitized = sanitizeMaterialPayload(payload);
-    if (!sanitized.name || !sanitized.code) {
-      const validationError = new Error("Material name and drawing number are required");
-      notify(validationError.message, "warning");
-      throw validationError;
-    }
-    try {
-      const material = await createMaterial(sanitized);
-      setAllMaterials((prev) => [...prev, material]);
-      notify("Material created", "success");
-      return material;
-    } catch (error) {
-      notify(error.message || "Failed to create material", "error");
-      throw error;
-    }
-  };
-
-  const handleUnlinkMaterial = async (materialId) => {
-    if (!selectedProjectId) {
-      return;
-    }
-    if (!window.confirm("Remove this material from the project?")) {
-      return;
-    }
-    try {
-      await unlinkMaterial(selectedProjectId, materialId);
-      notify("Material unlinked", "info");
-      if (selectedMaterialId === materialId) {
-        setSelectedMaterialId(null);
-      }
-      await loadDashboard(selectedProjectId);
-    } catch (error) {
-      notify(error.message || "Failed to unlink material", "error");
-    }
-  };
-
-  const handleInward = async (payload) => {
-    if (!selectedProjectId || !selectedMaterialId) {
-      notify("Select a material first", "warning");
-      return;
-    }
-    setSavingInward(true);
-    try {
-      await recordInward(selectedProjectId, selectedMaterialId, payload);
-      notify("Inward entry recorded", "success");
-      await Promise.all([
-        loadMaterialDetail(selectedProjectId, selectedMaterialId),
-        loadDashboard(selectedProjectId),
-      ]);
-      setShowInwardForm(false);
-    } catch (error) {
-      notify(error.message || "Failed to record inward", "error");
-    } finally {
-      setSavingInward(false);
-    }
-  };
-
-  const handleOutward = async (payload) => {
-    if (!selectedProjectId || !selectedMaterialId) {
-      notify("Select a material first", "warning");
-      return;
-    }
-    setSavingOutward(true);
-    try {
-      await recordOutward(selectedProjectId, selectedMaterialId, payload);
-      notify("Outward entry recorded", "success");
-      await Promise.all([
-        loadMaterialDetail(selectedProjectId, selectedMaterialId),
-        loadDashboard(selectedProjectId),
-      ]);
-      setShowOutwardForm(false);
-    } catch (error) {
-      notify(error.message || "Failed to record outward", "error");
-    } finally {
-      setSavingOutward(false);
-    }
-  };
-
-  const selectedProject = dashboard?.selectedProject || null;
-  const selectedMaterialSummary = materialOptions.find((item) => item.materialId === selectedMaterialId) || null;
-
   return (
     <Box sx={{ backgroundColor: "background.default", minHeight: "100vh" }}>
       <Box
@@ -741,7 +628,7 @@ export function DashboardPage() {
                 size={isMobile ? "medium" : "large"}
                 sx={{ borderRadius: 999 }}
                 onClick={() => setMaterialDialogOpen(true)}
-                disabled={!selectedProjectId}
+                disabled={!selectedProjectId || selectedProjectId === 0}
               >
                 Link material
               </Button>
@@ -756,8 +643,14 @@ export function DashboardPage() {
                   <Autocomplete
                     options={dashboard?.projects ?? []}
                     getOptionLabel={(option) => `${option.name} (${option.code})`}
-                    value={selectedProjectId ? dashboard?.projects?.find((p) => p.id === selectedProjectId) ?? null : null}
-                    onChange={(_, value) => setSelectedProjectId(value ? value.id : null)}
+                    value={
+                      selectedProjectId !== null && selectedProjectId !== undefined
+                        ? dashboard?.projects?.find((p) => p.id === selectedProjectId) ?? null
+                        : null
+                    }
+                    onChange={(_, value) =>
+                      setSelectedProjectId(value ? value.id : null)
+                    }
                     isOptionEqualToValue={(option, value) => option.id === value.id}
                     renderInput={(params) => <TextField {...params} placeholder="Search or scan project" size="small" />}
                     loading={dashboardLoading && !(dashboard?.projects?.length > 0)}
@@ -900,6 +793,7 @@ export function DashboardPage() {
                       onInward={() => setShowInwardForm(true)}
                       onOutward={() => setShowOutwardForm(true)}
                       onUnlink={handleUnlinkMaterial}
+                      canRecord={Boolean(selectedProjectId && selectedProjectId !== 0)}
                     />
                   ))}
                 </Stack>
@@ -1034,7 +928,7 @@ export function DashboardPage() {
       >
         <DialogTitle>Record inward entry</DialogTitle>
         <DialogContent dividers>
-          <InwardForm onSubmit={handleInward} loading={savingInward} />
+          <InwardForm onSubmit={handleInward} loading={savingInward} card={false} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowInwardForm(false)} color="inherit">
@@ -1052,7 +946,7 @@ export function DashboardPage() {
       >
         <DialogTitle>Record outward entry</DialogTitle>
         <DialogContent dividers>
-          <OutwardForm onSubmit={handleOutward} loading={savingOutward} />
+          <OutwardForm onSubmit={handleOutward} loading={savingOutward} card={false} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowOutwardForm(false)} color="inherit">

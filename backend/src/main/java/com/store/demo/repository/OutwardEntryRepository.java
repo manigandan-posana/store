@@ -13,7 +13,11 @@ import org.springframework.data.repository.query.Param;
 public interface OutwardEntryRepository extends JpaRepository<OutwardEntry, Long> {
     List<OutwardEntry> findByProjectAndMaterialOrderByMovementTimeDesc(Project project, Material material);
 
+    List<OutwardEntry> findByProjectIsNullAndMaterialOrderByMovementTimeDesc(Material material);
+
     List<OutwardEntry> findByProject(Project project);
+
+    List<OutwardEntry> findByProjectIsNull();
 
     @Query("SELECT COALESCE(SUM(o.quantity), 0) FROM OutwardEntry o WHERE o.project = :project AND o.material = :material")
     BigDecimal sumQuantityByProjectAndMaterial(@Param("project") Project project, @Param("material") Material material);

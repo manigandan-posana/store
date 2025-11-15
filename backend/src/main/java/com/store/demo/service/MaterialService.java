@@ -1,5 +1,6 @@
 package com.store.demo.service;
 
+import com.store.demo.domain.InwardEntry;
 import com.store.demo.domain.Material;
 import com.store.demo.repository.InwardEntryRepository;
 import com.store.demo.repository.MaterialRepository;
@@ -14,6 +15,7 @@ import com.store.demo.web.error.BadRequestException;
 import com.store.demo.web.error.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -68,7 +70,30 @@ public class MaterialService {
         material.setCreatedAt(now);
         material.setUpdatedAt(now);
         material = materialRepository.save(material);
+
+        Double initialQuantity = command.initialQuantity();
+        if (initialQuantity != null && initialQuantity > 0) {
+            createInitialStockEntry(material, initialQuantity, now);
+        }
+
         return toSummary(material);
+    }
+
+    private void createInitialStockEntry(Material material, double quantity, OffsetDateTime now) {
+        InwardEntry entry = new InwardEntry();
+        entry.setMaterial(material);
+        BigDecimal qty = BigDecimal.valueOf(quantity).setScale(3, RoundingMode.HALF_UP);
+        entry.setQuantity(qty);
+        entry.setRemainingQuantity(qty);
+        entry.setInvoiceQuantity(qty);
+        entry.setMovementTime(now);
+        entry.setReceiveDate(now.toLocalDate());
+        entry.setInvoiceDate(now.toLocalDate());
+        entry.setInvoiceNumber("INIT-" + material.getCode());
+        entry.setSupplier("Opening Balance");
+        entry.setReference("Initial Stock");
+        entry.setCreatedAt(now);
+        inwardEntryRepository.save(entry);
     }
 
     public MaterialSummaryDto update(Long materialId, UpdateMaterialCommand command) {
