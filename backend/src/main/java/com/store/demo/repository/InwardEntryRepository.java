@@ -19,6 +19,12 @@ public interface InwardEntryRepository extends JpaRepository<InwardEntry, Long> 
     @Query("SELECT COALESCE(SUM(i.quantity), 0) FROM InwardEntry i WHERE i.project = :project AND i.material = :material")
     BigDecimal sumQuantityByProjectAndMaterial(@Param("project") Project project, @Param("material") Material material);
 
+    @Query("SELECT COALESCE(SUM(i.quantity), 0) FROM InwardEntry i WHERE i.material = :material")
+    BigDecimal sumQuantityByMaterial(@Param("material") Material material);
+
+    @Query("SELECT COALESCE(SUM(i.remainingQuantity), 0) FROM InwardEntry i WHERE i.material = :material")
+    BigDecimal sumRemainingByMaterial(@Param("material") Material material);
+
     @Query("SELECT COALESCE(SUM(i.remainingQuantity), 0) FROM InwardEntry i WHERE i.project = :project AND i.material = :material")
     BigDecimal sumRemainingByProjectAndMaterial(@Param("project") Project project, @Param("material") Material material);
 

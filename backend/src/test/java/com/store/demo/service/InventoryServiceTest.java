@@ -6,11 +6,11 @@ import com.store.demo.service.dto.CreateMaterialCommand;
 import com.store.demo.service.dto.CreateProjectCommand;
 import com.store.demo.service.dto.LinkMaterialCommand;
 import com.store.demo.service.dto.MaterialDetailDto;
-import com.store.demo.service.dto.MaterialDto;
+import com.store.demo.service.dto.MaterialSummaryDto;
 import com.store.demo.service.dto.ProjectDto;
 import com.store.demo.service.dto.RecordInwardCommand;
 import com.store.demo.service.dto.RecordOutwardCommand;
-import java.time.OffsetDateTime;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,51 +34,43 @@ class InventoryServiceTest {
 
     @Test
     void fifoOutwardConsumesOldestBatchesFirst() {
-        ProjectDto project = projectService.create(new CreateProjectCommand(
-                "Project A", "PROJ-A", "Chennai", "In Progress", "Test project"));
-        MaterialDto material = materialService.create(new CreateMaterialCommand(
-                "Steel Rod", "ST-001", "kg", "Metals", 0, "Main"));
-        projectMaterialService.linkMaterial(new LinkMaterialCommand(project.id(), material.id(), null));
+        ProjectDto project = projectService.create(new CreateProjectCommand("Project A", "Chennai"));
+        MaterialSummaryDto material =
+                materialService.create(new CreateMaterialCommand("Steel Rod", "ST-001", "kg", "Metals"));
+        projectMaterialService.linkMaterial(new LinkMaterialCommand(project.id(), material.id()));
 
-        OffsetDateTime now = OffsetDateTime.now();
+        LocalDate today = LocalDate.now();
         inventoryService.recordInward(new RecordInwardCommand(
                 project.id(),
                 material.id(),
                 100,
-                null,
-                "BATCH-1",
-                null,
-                null,
-                now.minusHours(4),
-                "Truck",
+                100,
+                "INV-1",
+                today.minusDays(1),
+                today.minusDays(1),
                 "TN01",
                 "Supplier A",
-                "PO-1",
                 null));
         inventoryService.recordInward(new RecordInwardCommand(
                 project.id(),
                 material.id(),
                 50,
-                null,
-                "BATCH-2",
-                null,
-                null,
-                now.minusHours(1),
-                "Mini",
+                50,
+                "INV-2",
+                today,
+                today,
                 "TN02",
                 "Supplier A",
-                "PO-2",
                 null));
 
         inventoryService.recordOutward(new RecordOutwardCommand(
                 project.id(),
                 material.id(),
                 120,
-                null,
-                null,
-                now,
-                "Site",
-                "REQ-1",
+                today,
+                "Site Supervisor",
+                "Engineer",
+                "Incharge",
                 null));
 
         MaterialDetailDto detail = inventoryService.getMaterialDetail(project.id(), material.id());

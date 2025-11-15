@@ -36,7 +36,6 @@ public class ProjectMaterialService {
         ProjectMaterial projectMaterial = new ProjectMaterial();
         projectMaterial.setProject(project);
         projectMaterial.setMaterial(material);
-        projectMaterial.setDefaultLocationOverride(command.defaultLocationOverride());
         projectMaterialRepository.save(projectMaterial);
     }
 

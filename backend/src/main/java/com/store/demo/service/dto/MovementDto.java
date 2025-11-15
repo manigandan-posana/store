@@ -1,5 +1,6 @@
 package com.store.demo.service.dto;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 public record MovementDto(
@@ -11,14 +12,16 @@ public record MovementDto(
         String materialName,
         double quantity,
         OffsetDateTime movementTime,
-        String vehicleType,
+        String invoiceNumber,
+        LocalDate invoiceDate,
+        LocalDate receiveDate,
+        Double invoiceQuantity,
         String vehicleNumber,
-        String issuedToOrSupplier,
-        String batchNumber,
-        Double declaredQuantity,
-        Double variance,
-        Double weightTons,
-        Integer unitsCount,
+        String supplierName,
+        LocalDate handoverDate,
+        String handoverName,
+        String handoverDesignation,
+        String storeInchargeName,
         Double remainingQuantity,
-        String reference,
+        String batchSummary,
         String remarks) {}

@@ -10,3 +10,16 @@ export function createMaterial(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function updateMaterial(materialId, payload) {
+  return apiFetch(`/materials/${materialId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteMaterial(materialId) {
+  return apiFetch(`/materials/${materialId}`, {
+    method: "DELETE",
+  });
+}

@@ -20,6 +20,7 @@ import { listMaterials, createMaterial } from "../api/materials";
 import { getProject, linkMaterial, unlinkMaterial } from "../api/projects";
 import { LinkMaterialDialog } from "../components/forms/LinkMaterialDialog";
 import { useNotification } from "../providers/NotificationProvider";
+import { sanitizeMaterialPayload } from "../utils/materials";
 
 export function ProjectDetailPage() {
   const { projectId } = useParams();
@@ -62,9 +63,9 @@ export function ProjectDetailPage() {
     );
   }, [materials]);
 
-  const handleLinkMaterial = async ({ materialId, defaultLocationOverride }) => {
+  const handleLinkMaterial = async ({ materialId }) => {
     try {
-      await linkMaterial(projectId, { materialId, defaultLocationOverride });
+      await linkMaterial(projectId, { materialId });
       notify("Material linked to project", "success");
       setLinkDialogOpen(false);
       await loadProject();
@@ -74,8 +75,14 @@ export function ProjectDetailPage() {
   };
 
   const handleCreateMaterial = async (payload) => {
+    const sanitized = sanitizeMaterialPayload(payload);
+    if (!sanitized.name || !sanitized.code) {
+      const validationError = new Error("Material name and drawing number are required");
+      notify(validationError.message, "warning");
+      throw validationError;
+    }
     try {
-      const material = await createMaterial(payload);
+      const material = await createMaterial(sanitized);
       setAllMaterials((prev) => [...prev, material]);
       notify("Material created", "success");
       return material;
