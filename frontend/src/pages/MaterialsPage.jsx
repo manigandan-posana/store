@@ -10,6 +10,7 @@ import {
   DialogTitle,
   IconButton,
   InputAdornment,
+  Pagination,
   Paper,
   Stack,
   Table,
@@ -48,9 +49,11 @@ export function MaterialsPage() {
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const { notify } = useNotification();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const pageSize = isMobile ? 6 : 20;
 
   const loadMaterials = async () => {
     setLoading(true);
@@ -68,6 +71,10 @@ export function MaterialsPage() {
     loadMaterials();
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, isMobile, materials.length]);
+
   const filteredMaterials = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) {
@@ -78,6 +85,22 @@ export function MaterialsPage() {
       return values.some((value) => value?.toLowerCase?.().includes(query));
     });
   }, [materials, search]);
+
+  const pageCount = filteredMaterials.length ? Math.ceil(filteredMaterials.length / pageSize) : 0;
+
+  useEffect(() => {
+    if (page > pageCount && pageCount > 0) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
+
+  const paginatedMaterials = useMemo(() => {
+    if (!filteredMaterials.length) {
+      return [];
+    }
+    const start = (page - 1) * pageSize;
+    return filteredMaterials.slice(start, start + pageSize);
+  }, [filteredMaterials, page, pageSize]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -216,103 +239,181 @@ export function MaterialsPage() {
               />
             </Toolbar>
 
-            <TableContainer sx={{ maxHeight: 520 }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Material</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Drawing No.</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>UOM</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Line Type</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600 }}>
-                      On hand
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600 }}>
-                      Actions
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
+            {isMobile ? (
+              <Box sx={{ px: { xs: 2, md: 3 }, py: 2 }}>
+                {loading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                    <CircularProgress size={28} />
+                  </Box>
+                ) : filteredMaterials.length === 0 ? (
+                  <Stack spacing={2} alignItems="center" textAlign="center">
+                    <Typography variant="h6" fontWeight={600}>
+                      No materials found
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" maxWidth={360}>
+                      Adjust your search or add a new material to keep the registry up to date.
+                    </Typography>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
+                      Create material
+                    </Button>
+                  </Stack>
+                ) : (
+                  <Stack spacing={2}>
+                    {paginatedMaterials.map((material) => (
+                      <Paper key={material.id} variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                        <Stack spacing={2}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight={700}>
+                                {material.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                #{material.id?.toString?.() ?? material.id}
+                              </Typography>
+                            </Box>
+                            <Box textAlign="right">
+                              <Typography variant="caption" color="text.secondary">
+                                On hand
+                              </Typography>
+                              <Typography variant="h6" fontWeight={700}>
+                                {material.onHandQuantity?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? "0"}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                          <Stack direction="row" spacing={1} flexWrap="wrap">
+                            {material.code && <Chip label={material.code} size="small" variant="outlined" />}
+                            {material.unit && <Chip label={`UOM: ${material.unit}`} size="small" variant="outlined" />}
+                            {material.category ? (
+                              <Chip label={material.category} size="small" color="primary" variant="outlined" />
+                            ) : (
+                              <Chip label="Line type —" size="small" variant="outlined" />
+                            )}
+                          </Stack>
+                          <Stack direction="row" spacing={1} flexWrap="wrap">
+                            <Button size="small" variant="outlined" onClick={() => handleEdit(material)}>
+                              Edit
+                            </Button>
+                            <Button size="small" variant="text" color="error" onClick={() => handleDelete(material)}>
+                              Delete
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+            ) : (
+              <TableContainer sx={{ maxHeight: 520 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                        <CircularProgress size={30} />
+                      <TableCell sx={{ fontWeight: 600 }}>Material</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Drawing No.</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>UOM</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Line Type</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>
+                        On hand
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>
+                        Actions
                       </TableCell>
                     </TableRow>
-                  ) : filteredMaterials.length ? (
-                    filteredMaterials.map((material) => (
-                      <TableRow
-                        key={material.id}
-                        hover
-                        sx={{
-                          transition: "background-color 0.2s ease",
-                          "&:hover": { bgcolor: "action.hover" },
-                        }}
-                      >
-                        <TableCell>
-                          <Stack spacing={0.5}>
-                            <Typography variant="subtitle2" fontWeight={700}>
-                              {material.name}
+                  </TableHead>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                          <CircularProgress size={30} />
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredMaterials.length ? (
+                      paginatedMaterials.map((material) => (
+                        <TableRow
+                          key={material.id}
+                          hover
+                          sx={{
+                            transition: "background-color 0.2s ease",
+                            "&:hover": { bgcolor: "action.hover" },
+                          }}
+                        >
+                          <TableCell>
+                            <Stack spacing={0.5}>
+                              <Typography variant="subtitle2" fontWeight={700}>
+                                {material.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                #{material.id?.toString?.() ?? material.id}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {material.code}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              #{material.id?.toString?.() ?? material.id}
+                          </TableCell>
+                          <TableCell>
+                            <Chip size="small" label={material.unit || "-"} variant="outlined" sx={{ fontWeight: 600 }} />
+                          </TableCell>
+                          <TableCell>
+                            {material.category ? (
+                              <Chip label={material.category} size="small" color="primary" variant="outlined" />
+                            ) : (
+                              <Typography variant="body2" color="text.disabled">
+                                —
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight={700}>
+                              {material.onHandQuantity?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? "0"}
                             </Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={600}>
-                            {material.code}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip size="small" label={material.unit || "-"} variant="outlined" sx={{ fontWeight: 600 }} />
-                        </TableCell>
-                        <TableCell>
-                          {material.category ? (
-                            <Chip label={material.category} size="small" color="primary" variant="outlined" />
-                          ) : (
-                            <Typography variant="body2" color="text.disabled">
-                              —
+                          </TableCell>
+                          <TableCell align="right">
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <IconButton size="small" color="primary" onClick={() => handleEdit(material)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton size="small" color="error" onClick={() => handleDelete(material)}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                          <Stack spacing={2} alignItems="center">
+                            <Typography variant="h6" fontWeight={600}>
+                              No materials found
                             </Typography>
-                          )}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" fontWeight={700}>
-                            {material.onHandQuantity?.toLocaleString(undefined, { maximumFractionDigits: 2 }) ?? "0"}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <IconButton size="small" color="primary" onClick={() => handleEdit(material)}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton size="small" color="error" onClick={() => handleDelete(material)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+                            <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={360}>
+                              Adjust your search or add a new material to keep the registry up to date.
+                            </Typography>
+                            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
+                              Create material
+                            </Button>
                           </Stack>
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
-                        <Stack spacing={2} alignItems="center">
-                          <Typography variant="h6" fontWeight={600}>
-                            No materials found
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={360}>
-                            Adjust your search or add a new material to keep the registry up to date.
-                          </Typography>
-                          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
-                            Create material
-                          </Button>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+
+            {!loading && filteredMaterials.length > 0 && pageCount > 1 && (
+              <Box sx={{ display: "flex", justifyContent: "center", px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}>
+                <Pagination
+                  count={pageCount}
+                  page={page}
+                  onChange={(_, value) => setPage(value)}
+                  shape="rounded"
+                  color="primary"
+                />
+              </Box>
+            )}
           </Paper>
         </Stack>
       </Container>

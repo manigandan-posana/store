@@ -111,31 +111,6 @@ public class MaterialService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    public void delete(Long materialId) {
-        Material material = getMaterialEntity(materialId);
-        if (projectMaterialRepository.existsByMaterial(material)) {
-            throw new BadRequestException("Material is linked to one or more projects");
-        }
-        materialRepository.delete(material);
-    }
-
-    private void validateMaterialInput(String name, String code) {
-        if (code == null || code.trim().isEmpty()) {
-            throw new BadRequestException("Drawing part number is required");
-        }
-        if (name == null || name.trim().isEmpty()) {
-            throw new BadRequestException("Material name is required");
-        }
-    }
-
-    private String normalizeOptional(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
     @Transactional(readOnly = true)
     public MaterialDto findById(Long id) {
         return mapper.toMaterialDto(getMaterialEntity(id));
