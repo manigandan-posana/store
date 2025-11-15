@@ -2,7 +2,7 @@ package com.store.demo.web;
 
 import com.store.demo.service.MaterialService;
 import com.store.demo.service.dto.CreateMaterialCommand;
-import com.store.demo.service.dto.MaterialDto;
+import com.store.demo.service.dto.MaterialSummaryDto;
 import com.store.demo.web.dto.CreateMaterialRequest;
 import com.store.demo.web.dto.UpdateMaterialRequest;
 import jakarta.validation.Valid;
@@ -31,21 +31,21 @@ public class MaterialController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','BACKOFFICE')")
-    public List<MaterialDto> listMaterials() {
-        return materialService.findAll();
+    public List<MaterialSummaryDto> listMaterials() {
+        return materialService.findAllWithStock();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('BACKOFFICE')")
-    public MaterialDto createMaterial(@Valid @RequestBody CreateMaterialRequest request) {
+    public MaterialSummaryDto createMaterial(@Valid @RequestBody CreateMaterialRequest request) {
         return materialService.create(new CreateMaterialCommand(
                 request.name(), request.code(), request.unit(), request.category()));
     }
 
     @PutMapping("/{materialId}")
     @PreAuthorize("hasRole('BACKOFFICE')")
-    public MaterialDto updateMaterial(
+    public MaterialSummaryDto updateMaterial(
             @PathVariable Long materialId, @Valid @RequestBody UpdateMaterialRequest request) {
         return materialService.update(
                 materialId,

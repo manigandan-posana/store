@@ -18,7 +18,6 @@ import { fetchDashboard } from "../api/dashboard";
 import { createProject, getMaterialDetail, linkMaterial, unlinkMaterial } from "../api/projects";
 import { listMaterials, createMaterial } from "../api/materials";
 import { recordInward, recordOutward } from "../api/inventory";
-import { DataCard } from "../components/common/DataCard";
 import { MovementTable } from "../components/common/MovementTable";
 import { CreateProjectDialog } from "../components/forms/CreateProjectDialog";
 import { InwardForm } from "../components/forms/InwardForm";
@@ -307,40 +306,52 @@ export function DashboardPage() {
         </Typography>
       ) : (
         <>
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <DataCard
-                title="Linked Materials"
-                value={materialOptions.length.toLocaleString()}
-                subtitle="For selected project"
-                color="primary"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <DataCard
-                title="Total Inward"
-                value={projectTotals.totalIn.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                subtitle="Quantity received"
-                color="success"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <DataCard
-                title="Total Outward"
-                value={projectTotals.totalOut.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                subtitle="FIFO issued"
-                color="error"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <DataCard
-                title="Current Stock"
-                value={projectTotals.currentStock.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                subtitle="Available now"
-                color="warning"
-              />
-            </Grid>
-          </Grid>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
+            <Box sx={{ flex: 1, p: 2, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary">
+                Linked materials
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {materialOptions.length.toLocaleString()}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                For {selectedProject.name}
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1, p: 2, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary">
+                Total inward
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {projectTotals.totalIn.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Quantity received
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1, p: 2, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary">
+                Total outward
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {projectTotals.totalOut.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                FIFO issued
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1, p: 2, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary">
+                Current stock
+              </Typography>
+              <Typography variant="h6" fontWeight={700}>
+                {projectTotals.currentStock.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Available now
+              </Typography>
+            </Box>
+          </Stack>
 
           <Grid container spacing={3}>
             <Grid item xs={12} lg={4}>
