@@ -1,68 +1,117 @@
 import {
+  Autocomplete,
   Box,
   Button,
+  Chip,
   CircularProgress,
+  Collapse,
   Grid,
-  MenuItem,
   Paper,
-  Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
+  Tab,
+  Tabs,
+  TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchDashboard } from "../api/dashboard";
-import { createProject } from "../api/projects";
+import { createProject, getMaterialDetail, linkMaterial, unlinkMaterial } from "../api/projects";
+import { listMaterials, createMaterial } from "../api/materials";
+import { recordInward, recordOutward } from "../api/inventory";
 import { DataCard } from "../components/common/DataCard";
 import { MovementTable } from "../components/common/MovementTable";
 import { CreateProjectDialog } from "../components/forms/CreateProjectDialog";
+import { InwardForm } from "../components/forms/InwardForm";
+import { OutwardForm } from "../components/forms/OutwardForm";
+import { LinkMaterialDialog } from "../components/forms/LinkMaterialDialog";
 import { useNotification } from "../providers/NotificationProvider";
 
 export function DashboardPage() {
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [dashboard, setDashboard] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [openProjectDialog, setOpenProjectDialog] = useState(false);
   const { notify } = useNotification();
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedMaterialId, setSelectedMaterialId] = useState(null);
+  const [materialDetail, setMaterialDetail] = useState(null);
+  const [materialLoading, setMaterialLoading] = useState(false);
+  const [materialTab, setMaterialTab] = useState("overview");
+  const [showInwardForm, setShowInwardForm] = useState(false);
+  const [showOutwardForm, setShowOutwardForm] = useState(false);
+  const [savingInward, setSavingInward] = useState(false);
+  const [savingOutward, setSavingOutward] = useState(false);
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [materialDialogOpen, setMaterialDialogOpen] = useState(false);
+  const [allMaterials, setAllMaterials] = useState([]);
 
-  const loadDashboard = async (projectId) => {
-    setLoading(true);
-    try {
-      const data = await fetchDashboard(projectId);
-      setDashboard(data);
-      if (!projectId && data?.selectedProject) {
-        setSelectedProjectId(data.selectedProject.id);
+  const loadDashboard = useCallback(
+    async (projectId) => {
+      setDashboardLoading(true);
+      try {
+        const data = await fetchDashboard(projectId);
+        setDashboard(data);
+        if (!projectId && data?.selectedProject) {
+          setSelectedProjectId(data.selectedProject.id);
+        }
+        if (data?.materialSummaries?.length) {
+          setSelectedMaterialId((prev) => {
+            const exists = data.materialSummaries.some((item) => item.materialId === prev);
+            return exists ? prev : data.materialSummaries[0].materialId;
+          });
+        } else {
+          setSelectedMaterialId(null);
+        }
+      } catch (error) {
+        notify(error.message || "Failed to load dashboard", "error");
+      } finally {
+        setDashboardLoading(false);
       }
-    } catch (error) {
-      notify(error.message || "Failed to load dashboard", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [notify]
+  );
 
   useEffect(() => {
     loadDashboard(selectedProjectId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProjectId]);
+  }, [selectedProjectId, loadDashboard]);
 
-  const handleProjectCreated = async (values) => {
-    try {
-      const project = await createProject(values);
-      notify(`Project "${project.name}" created`, "success");
-      setOpenProjectDialog(false);
-      await loadDashboard(project.id);
-      setSelectedProjectId(project.id);
-    } catch (error) {
-      notify(error.message || "Failed to create project", "error");
+  useEffect(() => {
+    listMaterials()
+      .then((data) => setAllMaterials(data))
+      .catch(() => {});
+  }, []);
+
+  const loadMaterialDetail = useCallback(
+    async (projectId, materialId) => {
+      if (!projectId || !materialId) {
+        setMaterialDetail(null);
+        return;
+      }
+      setMaterialLoading(true);
+      try {
+        const detail = await getMaterialDetail(projectId, materialId);
+        setMaterialDetail(detail);
+      } catch (error) {
+        notify(error.message || "Failed to load material detail", "error");
+      } finally {
+        setMaterialLoading(false);
+      }
+    },
+    [notify]
+  );
+
+  useEffect(() => {
+    loadMaterialDetail(selectedProjectId, selectedMaterialId);
+  }, [selectedProjectId, selectedMaterialId, loadMaterialDetail]);
+
+  useEffect(() => {
+    setMaterialTab("overview");
+    setShowInwardForm(false);
+    setShowOutwardForm(false);
+  }, [selectedMaterialId, selectedProjectId]);
+
+  const projectTotals = useMemo(() => {
+    if (!dashboard?.materialSummaries?.length) {
+      return { totalIn: 0, totalOut: 0, currentStock: 0 };
     }
-  };
-
-  const materialTotals = useMemo(() => {
-    if (!dashboard?.materialSummaries) return { totalIn: 0, totalOut: 0, currentStock: 0 };
     return dashboard.materialSummaries.reduce(
       (acc, item) => ({
         totalIn: acc.totalIn + item.totalIn,
@@ -73,192 +122,471 @@ export function DashboardPage() {
     );
   }, [dashboard]);
 
+  const materialOptions = dashboard?.materialSummaries ?? [];
+
+  const availableMaterials = useMemo(() => {
+    const linkedIds = new Set(materialOptions.map((item) => item.materialId));
+    return allMaterials.filter((material) => !linkedIds.has(material.id));
+  }, [allMaterials, materialOptions]);
+
+  const handleProjectCreated = async (values) => {
+    try {
+      const project = await createProject(values);
+      notify(`Project "${project.name}" created`, "success");
+      setProjectDialogOpen(false);
+      setSelectedProjectId(project.id);
+      await loadDashboard(project.id);
+    } catch (error) {
+      notify(error.message || "Failed to create project", "error");
+    }
+  };
+
+  const handleLinkMaterial = async ({ materialId, defaultLocationOverride }) => {
+    if (!selectedProjectId) {
+      notify("Select a project first", "warning");
+      return;
+    }
+    try {
+      await linkMaterial(selectedProjectId, { materialId, defaultLocationOverride });
+      notify("Material linked to project", "success");
+      setMaterialDialogOpen(false);
+      await loadDashboard(selectedProjectId);
+      setSelectedMaterialId(materialId);
+    } catch (error) {
+      notify(error.message || "Failed to link material", "error");
+    }
+  };
+
+  const handleCreateMaterial = async (payload) => {
+    try {
+      const material = await createMaterial(payload);
+      setAllMaterials((prev) => [...prev, material]);
+      notify("Material created", "success");
+      return material;
+    } catch (error) {
+      notify(error.message || "Failed to create material", "error");
+      throw error;
+    }
+  };
+
+  const handleUnlinkMaterial = async (materialId) => {
+    if (!selectedProjectId) {
+      return;
+    }
+    if (!window.confirm("Remove this material from the project?")) {
+      return;
+    }
+    try {
+      await unlinkMaterial(selectedProjectId, materialId);
+      notify("Material unlinked", "info");
+      if (selectedMaterialId === materialId) {
+        setSelectedMaterialId(null);
+      }
+      await loadDashboard(selectedProjectId);
+    } catch (error) {
+      notify(error.message || "Failed to unlink material", "error");
+    }
+  };
+
+  const handleInward = async (payload) => {
+    if (!selectedProjectId || !selectedMaterialId) {
+      notify("Select a material first", "warning");
+      return;
+    }
+    setSavingInward(true);
+    try {
+      await recordInward(selectedProjectId, selectedMaterialId, payload);
+      notify("Inward entry recorded", "success");
+      await Promise.all([
+        loadMaterialDetail(selectedProjectId, selectedMaterialId),
+        loadDashboard(selectedProjectId),
+      ]);
+      setShowInwardForm(false);
+    } catch (error) {
+      notify(error.message || "Failed to record inward", "error");
+    } finally {
+      setSavingInward(false);
+    }
+  };
+
+  const handleOutward = async (payload) => {
+    if (!selectedProjectId || !selectedMaterialId) {
+      notify("Select a material first", "warning");
+      return;
+    }
+    setSavingOutward(true);
+    try {
+      await recordOutward(selectedProjectId, selectedMaterialId, payload);
+      notify("Outward entry recorded", "success");
+      await Promise.all([
+        loadMaterialDetail(selectedProjectId, selectedMaterialId),
+        loadDashboard(selectedProjectId),
+      ]);
+      setShowOutwardForm(false);
+    } catch (error) {
+      notify(error.message || "Failed to record outward", "error");
+    } finally {
+      setSavingOutward(false);
+    }
+  };
+
+  const selectedProject = dashboard?.selectedProject || null;
+  const selectedMaterialSummary = materialOptions.find((item) => item.materialId === selectedMaterialId) || null;
+
   return (
     <Box>
-      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems="center" mb={3}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={2} justifyContent="space-between" alignItems="flex-start" mb={3}>
         <Box>
           <Typography variant="h4" fontWeight={700} gutterBottom>
-            Dashboard
+            Backoffice Console
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Track project-wise inventory, batch movements, and FIFO outward usage in real time.
+            Link materials, capture invoice-based inwards, and issue stock with FIFO in a mobile-friendly workspace.
           </Typography>
         </Box>
-        <Button variant="contained" onClick={() => setOpenProjectDialog(true)}>
-          Create New Project
-        </Button>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems="stretch">
+          <Button variant="contained" onClick={() => setProjectDialogOpen(true)}>
+            Create Project
+          </Button>
+          <Button
+            variant="outlined"
+            disabled={!selectedProjectId}
+            onClick={() => setMaterialDialogOpen(true)}
+          >
+            Add Material
+          </Button>
+        </Stack>
       </Stack>
 
       <Paper elevation={1} sx={{ p: 2, borderRadius: 2, mb: 3 }}>
-        <Stack direction={{ xs: "column", md: "row" }} gap={2} alignItems={{ xs: "flex-start", md: "center" }}>
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary">
-              Projects ({dashboard?.projectCount || 0})
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }}>
+          <Box flex={1}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Select Project
             </Typography>
-            <Select
-              size="small"
-              sx={{ minWidth: 260, mt: 1 }}
-              value={selectedProjectId ?? ""}
-              onChange={(event) => {
-                const value = event.target.value;
-                setSelectedProjectId(value === "" ? null : Number(value));
-              }}
-              displayEmpty
-            >
-              <MenuItem value="">
-                <em>All Projects</em>
-              </MenuItem>
-              {dashboard?.projects?.map((project) => (
-                <MenuItem value={project.id} key={project.id}>
-                  {project.name} ({project.code})
-                </MenuItem>
-              ))}
-            </Select>
+            <Autocomplete
+              options={dashboard?.projects ?? []}
+              getOptionLabel={(option) => `${option.name} (${option.code})`}
+              value={selectedProjectId ? dashboard?.projects?.find((p) => p.id === selectedProjectId) ?? null : null}
+              onChange={(_, value) => setSelectedProjectId(value ? value.id : null)}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              renderInput={(params) => <TextField {...params} placeholder="Search project..." size="small" />}
+              loading={dashboardLoading && !(dashboard?.projects?.length > 0)}
+            />
           </Box>
-          {dashboard?.selectedProject && (
+          {selectedProject && (
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
-                Selected Project
+                Current Project
               </Typography>
               <Typography variant="subtitle1" fontWeight={600}>
-                {dashboard.selectedProject.name}
+                {selectedProject.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {selectedProject.clientLocation || "–"} • {selectedProject.status || "In Progress"}
               </Typography>
             </Box>
           )}
         </Stack>
       </Paper>
 
-      {loading ? (
+      {dashboardLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
           <CircularProgress />
         </Box>
+      ) : !selectedProject ? (
+        <Typography color="text.secondary" textAlign="center" sx={{ py: 6 }}>
+          Create your first project to start tracking materials.
+        </Typography>
       ) : (
-        <Box>
-          <Grid container spacing={2} mb={3}>
-            <Grid item xs={12} md={4}>
+        <>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6} md={3}>
               <DataCard
-                title="Total Projects"
-                value={dashboard?.projectCount?.toLocaleString() || "0"}
-                subtitle="Across the organisation"
+                title="Linked Materials"
+                value={materialOptions.length.toLocaleString()}
+                subtitle="For selected project"
+                color="primary"
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <DataCard
                 title="Total Inward"
-                value={materialTotals.totalIn.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                subtitle="Units received for selected project"
+                value={projectTotals.totalIn.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                subtitle="Quantity received"
                 color="success"
               />
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={3}>
               <DataCard
                 title="Total Outward"
-                value={materialTotals.totalOut.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                subtitle="Units issued (FIFO)"
+                value={projectTotals.totalOut.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                subtitle="FIFO issued"
                 color="error"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <DataCard
+                title="Current Stock"
+                value={projectTotals.currentStock.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                subtitle="Available now"
+                color="warning"
               />
             </Grid>
           </Grid>
 
           <Grid container spacing={3}>
-            <Grid item xs={12} md={7}>
+            <Grid item xs={12} lg={4}>
               <Paper elevation={1} sx={{ p: 2, borderRadius: 2, height: "100%" }}>
                 <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                  Material Stock Snapshot
+                  Materials ({materialOptions.length})
                 </Typography>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Material</TableCell>
-                      <TableCell>Code</TableCell>
-                      <TableCell align="right">Current Stock</TableCell>
-                      <TableCell align="right">Stock (Tons)</TableCell>
-                      <TableCell align="right">Stock (Units)</TableCell>
-                      <TableCell align="right">Total In</TableCell>
-                      <TableCell align="right">Total Out</TableCell>
-                      <TableCell align="right">In (Tons)</TableCell>
-                      <TableCell align="right">Out (Tons)</TableCell>
-                      <TableCell align="right">In (Units)</TableCell>
-                      <TableCell align="right">Out (Units)</TableCell>
-                      <TableCell>Last In</TableCell>
-                      <TableCell>Last Out</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {dashboard?.materialSummaries?.length ? (
-                      dashboard.materialSummaries.map((material) => (
-                        <TableRow key={material.materialId}>
-                          <TableCell>{material.materialName}</TableCell>
-                          <TableCell>{material.materialCode}</TableCell>
-                          <TableCell align="right">
-                            {material.currentStock.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell align="right">
-                            {material.currentStockTons !== null && material.currentStockTons !== undefined
-                              ? material.currentStockTons.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                              : "-"}
-                          </TableCell>
-                          <TableCell align="right">
-                            {material.currentUnits !== null && material.currentUnits !== undefined
-                              ? material.currentUnits.toLocaleString()
-                              : "-"}
-                          </TableCell>
-                          <TableCell align="right">
-                            {material.totalIn.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell align="right">
-                            {material.totalOut.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell align="right">
-                            {material.totalInTons !== null && material.totalInTons !== undefined
-                              ? material.totalInTons.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                              : "-"}
-                          </TableCell>
-                          <TableCell align="right">
-                            {material.totalOutTons !== null && material.totalOutTons !== undefined
-                              ? material.totalOutTons.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                              : "-"}
-                          </TableCell>
-                          <TableCell align="right">
-                            {material.totalInUnits !== null && material.totalInUnits !== undefined
-                              ? material.totalInUnits.toLocaleString()
-                              : "-"}
-                          </TableCell>
-                          <TableCell align="right">
-                            {material.totalOutUnits !== null && material.totalOutUnits !== undefined
-                              ? material.totalOutUnits.toLocaleString()
-                              : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {material.lastInTime ? new Date(material.lastInTime).toLocaleString() : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {material.lastOutTime ? new Date(material.lastOutTime).toLocaleString() : "-"}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={7} align="center" sx={{ py: 3, color: "text.secondary" }}>
-                          No materials linked to this project yet.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2, maxHeight: 420, overflowY: "auto", pr: 1 }}>
+                  {materialOptions.length === 0 && (
+                    <Typography color="text.secondary" textAlign="center" sx={{ py: 6 }}>
+                      No materials linked yet. Use "Add Material" to connect from the master list.
+                    </Typography>
+                  )}
+                  {materialOptions.map((material) => {
+                    const selected = material.materialId === selectedMaterialId;
+                    return (
+                      <Paper
+                        key={material.materialId}
+                        variant="outlined"
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          borderColor: selected ? "primary.light" : "divider",
+                          bgcolor: selected ? "primary.light" : "background.paper",
+                          transition: "background-color 0.2s",
+                        }}
+                      >
+                        <Stack spacing={1}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {material.materialName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {material.materialCode} • UOM: {material.unit || "-"}
+                              </Typography>
+                            </Box>
+                            <Stack spacing={0.5} textAlign="right">
+                              <Typography variant="body1" fontWeight={700} color="primary.main">
+                                {material.currentStock.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                In {material.totalIn.toLocaleString(undefined, { maximumFractionDigits: 1 })} • Out {material.totalOut.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                              </Typography>
+                            </Stack>
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary">
+                            Last In: {material.lastInTime ? new Date(material.lastInTime).toLocaleString() : "–"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Last Out: {material.lastOutTime ? new Date(material.lastOutTime).toLocaleString() : "–"}
+                          </Typography>
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            <Button
+                              size="small"
+                              variant={selected ? "contained" : "outlined"}
+                              onClick={() => setSelectedMaterialId(material.materialId)}
+                            >
+                              {selected ? "Selected" : "View"}
+                            </Button>
+                            <Button size="small" color="error" onClick={() => handleUnlinkMaterial(material.materialId)}>
+                              Remove
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      </Paper>
+                    );
+                  })}
+                </Box>
               </Paper>
             </Grid>
-            <Grid item xs={12} md={5}>
-              <MovementTable title="Recent Movements" movements={dashboard?.recentActivity || []} />
+
+            <Grid item xs={12} lg={8}>
+              <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                  <Box>
+                    <Typography variant="h6" fontWeight={600}>
+                      Material Detail
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Review stock position, batches, and FIFO history without leaving this screen.
+                    </Typography>
+                  </Box>
+                  {selectedMaterialSummary && (
+                    <Chip
+                      label={`${selectedMaterialSummary.materialCode} • ${selectedMaterialSummary.unit || "-"}`}
+                      color="primary"
+                      variant="outlined"
+                    />
+                  )}
+                </Stack>
+
+                {materialLoading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+                    <CircularProgress size={32} />
+                  </Box>
+                ) : !materialDetail ? (
+                  <Typography color="text.secondary" textAlign="center" sx={{ py: 6 }}>
+                    Select a material to view detailed information.
+                  </Typography>
+                ) : (
+                  <Box>
+                    <Stack
+                      direction={{ xs: "column", md: "row" }}
+                      justifyContent="space-between"
+                      alignItems={{ xs: "flex-start", md: "center" }}
+                      spacing={2}
+                      sx={{ mb: 2 }}
+                    >
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          {materialDetail.material.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {materialDetail.project.name} • {materialDetail.material.code} • UOM {materialDetail.material.unit || "-"}
+                        </Typography>
+                      </Box>
+                      <Stack direction="row" spacing={2}>
+                        <Box textAlign="center">
+                          <Typography variant="caption" color="text.secondary">
+                            Current Stock
+                          </Typography>
+                          <Typography variant="h6" fontWeight={700}>
+                            {materialDetail.stats.currentStock.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </Typography>
+                        </Box>
+                        <Box textAlign="center">
+                          <Typography variant="caption" color="text.secondary">
+                            Total In / Out
+                          </Typography>
+                          <Typography variant="h6" fontWeight={700}>
+                            {materialDetail.stats.totalIn.toLocaleString(undefined, { maximumFractionDigits: 1 })} / {materialDetail.stats.totalOut.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Stack>
+
+                    <Tabs
+                      value={materialTab}
+                      onChange={(_, value) => setMaterialTab(value)}
+                      textColor="primary"
+                      indicatorColor="primary"
+                      variant="scrollable"
+                      scrollButtons="auto"
+                      sx={{ mb: 2 }}
+                    >
+                      <Tab value="overview" label="Overview" />
+                      <Tab value="inwards" label={`Inwards (${materialDetail.inwards.length})`} />
+                      <Tab value="outwards" label={`Outwards (${materialDetail.outwards.length})`} />
+                      <Tab value="history" label={`History (${materialDetail.history.length})`} />
+                    </Tabs>
+
+                    {materialTab === "overview" && (
+                      <Stack spacing={2}>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={4}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Default Location
+                              </Typography>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {materialDetail.material.defaultLocation || "–"}
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Minimum Stock
+                              </Typography>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {(materialDetail.material.minimumStock ?? 0).toLocaleString()} {materialDetail.material.unit || ""}
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          <Grid item xs={12} sm={4}>
+                            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Status
+                              </Typography>
+                              <Typography
+                                variant="subtitle1"
+                                fontWeight={600}
+                                color={
+                                  materialDetail.stats.currentStock < (materialDetail.material.minimumStock ?? 0)
+                                    ? "error.main"
+                                    : "success.main"
+                                }
+                              >
+                                {materialDetail.stats.currentStock < (materialDetail.material.minimumStock ?? 0)
+                                  ? "Below minimum"
+                                  : "Healthy"}
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                        </Grid>
+
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                          <Button
+                            variant={showInwardForm ? "contained" : "outlined"}
+                            onClick={() => setShowInwardForm((prev) => !prev)}
+                          >
+                            {showInwardForm ? "Hide Inward Form" : "Record Inward"}
+                          </Button>
+                          <Button
+                            variant={showOutwardForm ? "contained" : "outlined"}
+                            color="error"
+                            onClick={() => setShowOutwardForm((prev) => !prev)}
+                          >
+                            {showOutwardForm ? "Hide Outward Form" : "Record Outward"}
+                          </Button>
+                        </Stack>
+
+                        <Collapse in={showInwardForm} timeout="auto" unmountOnExit>
+                          <InwardForm onSubmit={handleInward} loading={savingInward} />
+                        </Collapse>
+                        <Collapse in={showOutwardForm} timeout="auto" unmountOnExit>
+                          <OutwardForm onSubmit={handleOutward} loading={savingOutward} />
+                        </Collapse>
+                      </Stack>
+                    )}
+
+                    {materialTab === "inwards" && (
+                      <MovementTable title="Inward Batches" movements={materialDetail.inwards} />
+                    )}
+
+                    {materialTab === "outwards" && (
+                      <MovementTable title="Outward Movements" movements={materialDetail.outwards} />
+                    )}
+
+                    {materialTab === "history" && (
+                      <MovementTable title="Combined History" movements={materialDetail.history} />
+                    )}
+                  </Box>
+                )}
+              </Paper>
             </Grid>
           </Grid>
-        </Box>
+        </>
       )}
 
       <CreateProjectDialog
-        open={openProjectDialog}
-        onClose={() => setOpenProjectDialog(false)}
+        open={projectDialogOpen}
+        onClose={() => setProjectDialogOpen(false)}
         onSubmit={handleProjectCreated}
+      />
+
+      <LinkMaterialDialog
+        open={materialDialogOpen}
+        onClose={() => setMaterialDialogOpen(false)}
+        materials={availableMaterials}
+        onLinkExisting={handleLinkMaterial}
+        onCreateMaterial={handleCreateMaterial}
       />
     </Box>
   );

@@ -9,10 +9,12 @@ import com.store.demo.domain.ProjectMaterial;
 import com.store.demo.repository.InwardEntryRepository;
 import com.store.demo.repository.OutwardEntryRepository;
 import com.store.demo.repository.ProjectMaterialRepository;
+import com.store.demo.service.dto.InventoryMovementReportDto;
 import com.store.demo.service.dto.MaterialDetailDto;
 import com.store.demo.service.dto.MaterialDto;
 import com.store.demo.service.dto.MaterialStatsDto;
 import com.store.demo.service.dto.MovementDto;
+import com.store.demo.service.dto.ProjectDto;
 import com.store.demo.service.dto.RecordInwardCommand;
 import com.store.demo.service.dto.RecordOutwardCommand;
 import com.store.demo.service.mapper.DtoMapper;
@@ -27,8 +29,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -264,6 +266,48 @@ public class InventoryService {
                 totalUnitsOut,
                 totalUnitsOnHand,
                 buildProjectConsumption());
+    }
+
+    @Transactional(readOnly = true)
+    public InventoryMovementReportDto getInventoryMovementReport(Long projectId) {
+        List<ProjectDto> projects = projectService.findAll();
+
+        Project selectedProjectEntity = null;
+        ProjectDto selectedProject = null;
+        if (projectId != null) {
+            selectedProjectEntity = projectService.getProjectEntity(projectId);
+            selectedProject = mapper.toProjectDto(selectedProjectEntity);
+        }
+
+        List<MovementDto> movements = new ArrayList<>();
+        if (selectedProjectEntity != null) {
+            movements.addAll(inwardEntryRepository.findByProject(selectedProjectEntity).stream()
+                    .map(entry -> toInwardMovement(selectedProjectEntity, entry.getMaterial(), entry))
+                    .toList());
+            movements.addAll(outwardEntryRepository.findByProject(selectedProjectEntity).stream()
+                    .map(entry -> toOutwardMovement(selectedProjectEntity, entry.getMaterial(), entry))
+                    .toList());
+        } else {
+            movements.addAll(inwardEntryRepository.findAll().stream()
+                    .map(entry -> toInwardMovement(entry.getProject(), entry.getMaterial(), entry))
+                    .toList());
+            movements.addAll(outwardEntryRepository.findAll().stream()
+                    .map(entry -> toOutwardMovement(entry.getProject(), entry.getMaterial(), entry))
+                    .toList());
+        }
+
+        movements.sort(Comparator.comparing(MovementDto::movementTime).reversed());
+
+        double totalInQuantity = movements.stream()
+                .filter(movement -> "IN".equals(movement.type()))
+                .mapToDouble(MovementDto::quantity)
+                .sum();
+        double totalOutQuantity = movements.stream()
+                .filter(movement -> "OUT".equals(movement.type()))
+                .mapToDouble(MovementDto::quantity)
+                .sum();
+
+        return new InventoryMovementReportDto(projects, selectedProject, movements, totalInQuantity, totalOutQuantity);
     }
 
     private List<ProjectConsumptionResponse> buildProjectConsumption() {
